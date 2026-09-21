@@ -3,6 +3,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { KeyRound, MapPin, UserRound } from 'lucide-react'
 import Link from 'next/link'
+import { revalidatePath } from 'next/cache'
+
+async function updateNotificationPreferences(formData: FormData) {
+  'use server'
+
+  const supabase = await createClient()
+  if (!supabase) return
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const smsEnabled = formData.get('smsEnabled') === 'on'
+  const emailEnabled = formData.get('emailEnabled') === 'on'
+  const notificationPreferences = { email: emailEnabled, sms: smsEnabled }
+  await supabase.auth.updateUser({ data: { notification_preferences: notificationPreferences } })
+  const { error } = await supabase.from('profiles').update({ notification_preferences: notificationPreferences, updated_at: new Date().toISOString() }).eq('id', user.id)
+  if (error) await supabase.from('profiles').update({ updated_at: new Date().toISOString() }).eq('id', user.id)
+  revalidatePath('/patient/account')
+}
 
 export default async function AccountPage() {
   const supabase = await createClient()
@@ -19,6 +37,7 @@ export default async function AccountPage() {
   } catch (err) {
     console.warn('Could not fetch profile:', err)
   }
+  const preferences = profile?.notification_preferences || user?.user_metadata?.notification_preferences || { email: true, sms: true }
 
   return (
     <div className="space-y-7">
@@ -80,15 +99,23 @@ export default async function AccountPage() {
             <CardDescription>Customize your experience</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-3">
+            <form action={updateNotificationPreferences} className="space-y-3">
               <div className="flex items-center justify-between rounded-md border border-emerald-100 bg-emerald-50/35 p-4">
                 <div>
                   <p className="font-medium text-emerald-950">Email notifications</p>
                   <p className="text-sm text-muted-foreground">Receive updates about your appointments</p>
                 </div>
-                <input type="checkbox" defaultChecked className="h-4 w-4" />
+                <input type="checkbox" name="emailEnabled" defaultChecked={preferences.email !== false} className="h-4 w-4" />
               </div>
-            </div>
+              <div className="flex items-center justify-between rounded-md border border-emerald-100 bg-emerald-50/35 p-4">
+                <div>
+                  <p className="font-medium text-emerald-950">SMS notifications</p>
+                  <p className="text-sm text-muted-foreground">Receive appointment reminders and status updates by text message</p>
+                </div>
+                <input type="checkbox" name="smsEnabled" defaultChecked={preferences.sms !== false} className="h-4 w-4" />
+              </div>
+              <div className="flex justify-end pt-2"><Button type="submit">Save notification preferences</Button></div>
+            </form>
           </CardContent>
         </Card>
       </div>

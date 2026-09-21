@@ -6,7 +6,8 @@ import {
   getDoctorUnavailableEmailHtml,
   getReminderEmailHtml,
 } from './email-templates'
-import { sendSmsNotification, generateSmsMessage } from './sms'
+import { sendSmsNotification } from './sms'
+import { createClient } from '@supabase/supabase-js'
 
 export { formatScheduleId }
 
@@ -156,8 +157,8 @@ export async function dispatchAutomatedNotifications(
         } else {
           result.email = { sent: true }
         }
-      } catch (err: any) {
-        result.email = { sent: false, error: err.message }
+      } catch (err: unknown) {
+        result.email = { sent: false, error: err instanceof Error ? err.message : 'Email delivery failed' }
       }
     } else {
       console.log(`[Email Automation Simulator] To: ${payload.patientEmail} | Subject: "${emailSubject}" | Ref: ${scheduleId}`)
@@ -165,8 +166,17 @@ export async function dispatchAutomatedNotifications(
     }
   }
 
-  // 3. Dispatch SMS
-  if (payload.patientPhone || payload.patientEmail) {
+  // 3. Dispatch SMS only when the patient has opted in.
+  let smsEnabled = true
+  if (payload.patientUserId && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    const { data: profile } = await supabase.from('profiles').select('notification_preferences').eq('id', payload.patientUserId).maybeSingle()
+    const { data: authUser } = await supabase.auth.admin.getUserById(payload.patientUserId)
+    const preferences = profile?.notification_preferences || authUser.user?.user_metadata?.notification_preferences
+    smsEnabled = preferences?.sms !== false
+  }
+
+  if (smsEnabled && (payload.patientPhone || payload.patientEmail)) {
     const smsRes = await sendSmsNotification({
       to: payload.patientPhone || 'Simulated-Phone',
       scheduleId,

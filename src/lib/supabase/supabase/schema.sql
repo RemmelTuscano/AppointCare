@@ -9,6 +9,7 @@ create table profiles (
   email text unique not null,
   location text,
   phone text,
+  notification_preferences jsonb not null default '{"email": true, "sms": true}'::jsonb,
   avatar_url text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
