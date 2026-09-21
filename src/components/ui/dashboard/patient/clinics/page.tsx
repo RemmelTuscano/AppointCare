@@ -7,9 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { ArrowLeft, CheckCircle2, MapPin, Stethoscope, UserCheck, UserRound, UsersRound } from 'lucide-react'
-import { format } from 'date-fns'
-
-import { formatScheduleId } from '@/lib/email-templates'
 
 type ClinicDoctor = {
   id: string
@@ -94,8 +91,6 @@ export default function PatientClinics() {
       return
     }
 
-    const scheduleId = formatScheduleId(apt.id)
-
     await fetch('/api/notifications/dispatch', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'created', appointmentId: apt.id, patientEmail: user.email, patientPhone: profile?.phone, patientName: profile?.full_name, patientUserId: user.id, clinicUserId: selectedClinic.user_id, clinicName: selectedClinic.name, clinicAddress: selectedClinic.address, doctorName: chosenDoctor?.name, doctorSpecialization: chosenDoctor?.specialization, scheduledAt: apt.scheduled_at, notes }),
@@ -124,9 +119,9 @@ export default function PatientClinics() {
 
       {loading && <div className="py-12 text-center text-muted-foreground">Loading clinic directory...</div>}
 
-      {!loading && !selectedClinic && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {!loading && !selectedClinic && <div className="flex flex-row gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
         {clinics.map((clinic) => (
-          <Card key={clinic.id} className="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+          <Card key={clinic.id} className="w-[min(88vw,24rem)] shrink-0 snap-start transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-emerald-950">
                 <Stethoscope className="w-5 h-5 text-emerald-700" />
@@ -167,7 +162,7 @@ export default function PatientClinics() {
           </Card>
         ))}
         {!message && clinics.length === 0 && (
-          <Card className="md:col-span-2 lg:col-span-3">
+          <Card className="w-full shrink-0">
             <CardContent className="p-12 text-center text-muted-foreground">
               No verified clinics are available yet.
             </CardContent>
