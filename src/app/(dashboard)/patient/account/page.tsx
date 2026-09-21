@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { KeyRound, MapPin, UserRound } from 'lucide-react'
+import Link from 'next/link'
 
 export default async function AccountPage() {
   const supabase = await createClient()
@@ -53,7 +54,7 @@ export default async function AccountPage() {
                 <p className="text-lg text-emerald-950">{profile?.phone || 'Not set'}</p>
               </div>
             </div>
-            <Button className="mt-4">Edit Profile</Button>
+            <Button asChild className="mt-4"><Link href="/patient/account/edit">Edit Profile</Link></Button>
           </CardContent>
         </Card>
 
