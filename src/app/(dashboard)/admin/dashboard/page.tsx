@@ -1,19 +1,34 @@
 import Link from 'next/link'
 import { ArrowUpRight, CheckCircle2, DatabaseBackup, ShieldCheck, Stethoscope, UsersRound } from 'lucide-react'
+import { createAdminClient } from '@/lib/supabase/admin'
 
-const metrics = [
-  { label: 'Clinics awaiting review', value: '04', detail: '2 added this week', icon: Stethoscope, tone: 'amber' },
-  { label: 'Registered users', value: '1,284', detail: '8% growth this month', icon: UsersRound, tone: 'blue' },
-  { label: 'Verified clinics', value: '38', detail: '92% of all clinics', icon: ShieldCheck, tone: 'emerald' },
-]
+type ClinicSummary = { id: string; name: string; address: string; is_verified: boolean; created_at: string }
 
-const reviewQueue = [
-  { clinic: 'Northstar Family Practice', location: 'Portland, OR', submitted: 'Today, 9:42 AM', status: 'Needs review' },
-  { clinic: 'Harborview Pediatrics', location: 'Seattle, WA', submitted: 'Yesterday, 3:18 PM', status: 'Documents received' },
-  { clinic: 'Cedar Health Center', location: 'Austin, TX', submitted: 'Yesterday, 11:06 AM', status: 'Needs review' },
-]
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(value))
+}
 
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  const admin = createAdminClient()
+  let clinics: ClinicSummary[] = []
+  let userCount = 0
+
+  if (admin) {
+    const [clinicResult, userResult] = await Promise.all([
+      admin.from('clinics').select('id, name, address, is_verified, created_at').order('created_at', { ascending: false }),
+      admin.from('profiles').select('id', { count: 'exact', head: true }),
+    ])
+    clinics = clinicResult.data || []
+    userCount = userResult.count || 0
+  }
+
+  const pendingClinics = clinics.filter((clinic) => !clinic.is_verified)
+  const verifiedClinics = clinics.length - pendingClinics.length
+  const metrics = [
+    { label: 'Clinics awaiting review', value: String(pendingClinics.length), detail: 'Live database count', icon: Stethoscope, tone: 'amber' },
+    { label: 'Registered users', value: userCount.toLocaleString(), detail: 'Live database count', icon: UsersRound, tone: 'blue' },
+    { label: 'Verified clinics', value: String(verifiedClinics), detail: 'Live database count', icon: ShieldCheck, tone: 'emerald' },
+  ]
   return (
     <div className="space-y-8 pb-10">
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
@@ -54,13 +69,13 @@ export default function AdminDashboardPage() {
             <Link href="/admin/clinics" className="text-sm font-semibold text-emerald-700 hover:text-emerald-900">View all</Link>
           </div>
           <div className="divide-y divide-emerald-50">
-            {reviewQueue.map((item) => (
-              <div key={item.clinic} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            {pendingClinics.length === 0 ? <p className="px-5 py-10 text-center text-sm text-gray-500">No clinics are awaiting review.</p> : pendingClinics.slice(0, 3).map((item) => (
+              <div key={item.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="font-semibold text-emerald-950">{item.clinic}</p>
-                  <p className="mt-1 text-sm text-gray-500">{item.location} · Submitted {item.submitted}</p>
+                  <p className="font-semibold text-emerald-950">{item.name}</p>
+                  <p className="mt-1 text-sm text-gray-500">{item.address} · Submitted {formatDate(item.created_at)}</p>
                 </div>
-                <span className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${item.status === 'Needs review' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>{item.status}</span>
+                <span className="w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Needs review</span>
               </div>
             ))}
           </div>
