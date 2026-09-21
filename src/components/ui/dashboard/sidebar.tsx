@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Shield
+  , Activity
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -43,6 +44,7 @@ const navigation = {
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Clinics', href: '/admin/clinics', icon: Stethoscope },
     { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Activity', href: '/admin/activity', icon: Activity },
     { name: 'Backup', href: '/admin/backup', icon: Shield },
   ],
 }

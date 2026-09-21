@@ -28,8 +28,19 @@ async function setClinicVerification(formData: FormData) {
     return
   }
 
+  const { data: clinic } = await admin.from('clinics').select('name').eq('id', clinicId).single()
+  await admin.from('activity_logs').insert({
+    actor_id: user.id,
+    action: verified ? 'clinic_verified' : 'clinic_verification_revoked',
+    entity_type: 'clinic',
+    entity_id: clinicId,
+    summary: `${clinic?.name || 'Clinic'} was ${verified ? 'verified' : 'marked for review'}`,
+    metadata: { verified },
+  })
+
   revalidatePath('/admin/clinics')
   revalidatePath('/admin/dashboard')
+  revalidatePath('/admin/activity')
   revalidatePath('/api/clinics')
 }
 
