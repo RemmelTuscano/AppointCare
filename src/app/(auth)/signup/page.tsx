@@ -22,6 +22,10 @@ type SignupFormData = {
 
 type SignupSubmit = (event: React.FormEvent<HTMLFormElement>, role: 'patient' | 'clinic', formData: SignupFormData) => void
 
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, '')
+}
+
 export default function SignupPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -144,7 +148,7 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
         <Label htmlFor="patient-phone">Phone number</Label>
         <div className="relative">
           <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input id="patient-phone" type="tel" className="pl-10" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} autoComplete="tel" placeholder="+1 555 123 4567" required />
+          <Input id="patient-phone" type="tel" inputMode="numeric" pattern="[0-9]+" className="pl-10" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: digitsOnly(e.target.value) })} autoComplete="tel" placeholder="5551234567" required />
         </div>
         <p className="text-xs text-gray-500">Used for appointment reminders and updates.</p>
       </div>
@@ -211,7 +215,7 @@ function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit
         <Label htmlFor="clinic-phone">Phone number</Label>
         <div className="relative">
           <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input id="clinic-phone" type="tel" className="pl-10" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} autoComplete="tel" placeholder="+1 555 123 4567" required />
+          <Input id="clinic-phone" type="tel" inputMode="numeric" pattern="[0-9]+" className="pl-10" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: digitsOnly(e.target.value) })} autoComplete="tel" placeholder="5551234567" required />
         </div>
         <p className="text-xs text-gray-500">Used for clinic appointment notifications.</p>
       </div>
