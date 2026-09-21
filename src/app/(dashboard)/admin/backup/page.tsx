@@ -1,0 +1,18 @@
+import { CheckCircle2, DatabaseBackup, Download, HardDrive, RefreshCw } from 'lucide-react'
+
+const backups = [
+  { date: 'Today, 02:00 AM', type: 'Full database', size: '248 MB', status: 'Completed' },
+  { date: 'Yesterday, 02:00 AM', type: 'Full database', size: '246 MB', status: 'Completed' },
+  { date: 'Sep 19, 02:00 AM', type: 'Full database', size: '244 MB', status: 'Completed' },
+]
+
+export default function AdminBackupPage() {
+  return (
+    <div className="space-y-7 pb-10">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-700">Operations</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-emerald-950">Backup center</h1><p className="mt-2 text-gray-600">Monitor data protection and keep the platform ready to recover.</p></div><button className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900"><RefreshCw className="h-4 w-4" /> Run backup</button></div>
+      <div className="grid gap-4 md:grid-cols-3"><div className="border border-emerald-100 bg-white p-5 shadow-sm"><p className="text-sm text-gray-500">Last successful backup</p><p className="mt-3 text-2xl font-bold text-emerald-950">Today, 02:00 AM</p><p className="mt-2 text-xs text-emerald-700">Within scheduled window</p></div><div className="border border-emerald-100 bg-white p-5 shadow-sm"><p className="text-sm text-gray-500">Storage used</p><p className="mt-3 text-2xl font-bold text-emerald-950">2.4 GB</p><p className="mt-2 text-xs text-gray-500">of 10 GB allocated</p></div><div className="border border-emerald-100 bg-[#174c40] p-5 text-white shadow-sm"><div className="flex items-center gap-3"><CheckCircle2 className="h-5 w-5 text-[#b8e2b9]" /><p className="font-semibold">Protection active</p></div><p className="mt-3 text-sm leading-6 text-emerald-100/75">Automated daily backups are enabled with 30-day retention.</p></div></div>
+      <section className="border border-emerald-100 bg-white shadow-sm"><div className="border-b border-emerald-100 p-5"><h2 className="font-semibold text-emerald-950">Recent backups</h2><p className="mt-1 text-sm text-gray-500">Download an archive when you need an offline copy.</p></div><div className="divide-y divide-emerald-50">{backups.map((backup) => <div key={backup.date} className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-lg bg-emerald-100 text-emerald-700"><DatabaseBackup className="h-5 w-5" /></span><div><p className="font-semibold text-emerald-950">{backup.type}</p><p className="mt-1 text-sm text-gray-500">{backup.date} · {backup.size}</p></div></div><div className="flex items-center gap-4"><span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700"><CheckCircle2 className="h-4 w-4" />{backup.status}</span><button aria-label={`Download backup from ${backup.date}`} className="rounded-md border border-emerald-100 p-2 text-emerald-700 hover:bg-emerald-50"><Download className="h-4 w-4" /></button></div></div>)}</div></section>
+      <div className="flex gap-3 border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><HardDrive className="mt-0.5 h-5 w-5 shrink-0" /><p>Backups contain sensitive patient and clinic information. Keep downloaded copies in an approved secure location.</p></div>
+    </div>
+  )
+}
