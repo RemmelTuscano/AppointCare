@@ -234,7 +234,7 @@ export default function ClinicDoctors() {
                   setNewDoctor({ name: '', specialization: '' })
                   setIsDialogOpen(false)
                 }}
-                className="rounded-md p-2 text-gray-500 transition hover:bg-emerald-50 hover:text-emerald-800"
+                className="grid size-9 shrink-0 place-items-center rounded-md border border-red-200 bg-red-50 text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
               >
                 <X className="size-4" />
               </button>
