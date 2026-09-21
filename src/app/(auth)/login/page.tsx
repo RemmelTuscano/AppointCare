@@ -21,6 +21,11 @@ const PRESET_CLINIC_ACCOUNT = {
   password: 'Clinic@12345',
 }
 
+const PRESET_ADMIN_ACCOUNT = {
+  email: 'admin@appointcare.test',
+  password: 'Admin@12345',
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -123,6 +128,13 @@ export default function LoginPage() {
     setError('')
   }
 
+  const handleUsePresetAdminAccount = () => {
+    setRole('admin')
+    setEmail(PRESET_ADMIN_ACCOUNT.email)
+    setPassword(PRESET_ADMIN_ACCOUNT.password)
+    setError('')
+  }
+
   return (
     <Card className="border-0 shadow-2xl">
       <CardHeader className="space-y-1 text-center">
@@ -162,6 +174,13 @@ export default function LoginPage() {
             className="font-medium text-blue-600 hover:underline"
           >
             Use preset clinic account
+          </button>
+          <button
+            type="button"
+            onClick={handleUsePresetAdminAccount}
+            className="font-medium text-blue-600 hover:underline"
+          >
+            Use preset admin account
           </button>
           <div>
             Don&apos;t have an account?{' '}
