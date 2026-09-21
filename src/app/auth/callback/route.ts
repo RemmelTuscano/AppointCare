@@ -45,6 +45,7 @@ export async function GET(request: Request) {
             email: user.email,
             full_name: user.user_metadata.full_name || user.email,
             location: user.user_metadata.location || null,
+            phone: user.user_metadata.phone || null,
           })
         }
 
@@ -53,6 +54,7 @@ export async function GET(request: Request) {
             user_id: user.id,
             name: user.user_metadata.full_name || user.email || 'New clinic',
             address: user.user_metadata.location || 'Address pending',
+            phone: user.user_metadata.phone || null,
             email: user.email,
           }, { onConflict: 'user_id' })
         }

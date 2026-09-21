@@ -64,7 +64,7 @@ export default function ClinicAccountPage() {
 
   const saveClinic = async () => {
     const dailyCapacity = Number(form.dailyCapacity)
-    if (!clinic || !form.name.trim() || !form.address.trim() || !Number.isInteger(dailyCapacity) || dailyCapacity < 1) return
+    if (!clinic || !form.name.trim() || !form.address.trim() || !form.phone.trim() || !Number.isInteger(dailyCapacity) || dailyCapacity < 1) return
     setSaving(true)
     const { data, error } = await supabase
       .from('clinics')
@@ -137,11 +137,11 @@ export default function ClinicAccountPage() {
                 <div className="space-y-4 pt-4">
                   <FormField label="Clinic name" value={form.name} onChange={(value) => setForm((current) => ({ ...current, name: value }))} />
                   <FormField label="Address" value={form.address} onChange={(value) => setForm((current) => ({ ...current, address: value }))} />
-                  <FormField label="Phone" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} />
+                  <FormField label="Phone number" value={form.phone} onChange={(value) => setForm((current) => ({ ...current, phone: value }))} required type="tel" />
                   <FormField label="Email" type="email" value={form.email} onChange={(value) => setForm((current) => ({ ...current, email: value }))} />
                   <FormField label="Daily patient capacity" type="number" min="1" value={form.dailyCapacity} onChange={(value) => setForm((current) => ({ ...current, dailyCapacity: value }))} />
                   <div className="space-y-2"><Label htmlFor="clinic-description">Description</Label><textarea id="clinic-description" value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} className="h-24 w-full resize-none rounded-md border border-input p-3 text-sm outline-none focus:border-emerald-500 focus:ring-3 focus:ring-emerald-100" /></div>
-                  <Button className="w-full" disabled={saving || !form.name.trim() || !form.address.trim() || !Number.isInteger(Number(form.dailyCapacity)) || Number(form.dailyCapacity) < 1} onClick={saveClinic}>{saving ? 'Saving changes...' : 'Save clinic details'}</Button>
+                  <Button className="w-full" disabled={saving || !form.name.trim() || !form.address.trim() || !form.phone.trim() || !Number.isInteger(Number(form.dailyCapacity)) || Number(form.dailyCapacity) < 1} onClick={saveClinic}>{saving ? 'Saving changes...' : 'Save clinic details'}</Button>
                 </div>
               </DialogContent>
             </Dialog>
@@ -189,7 +189,7 @@ export default function ClinicAccountPage() {
   )
 }
 
-function FormField({ label, value, onChange, type = 'text', min }: { label: string; value: string; onChange: (value: string) => void; type?: string; min?: string }) {
+function FormField({ label, value, onChange, type = 'text', min, required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; min?: string; required?: boolean }) {
   const id = `clinic-${label.toLowerCase().replaceAll(' ', '-')}`
-  return <div className="space-y-2"><Label htmlFor={id}>{label}</Label><Input id={id} type={type} min={min} value={value} onChange={(event) => onChange(event.target.value)} /></div>
+  return <div className="space-y-2"><Label htmlFor={id}>{label}{required ? ' *' : ''}</Label><Input id={id} type={type} min={min} value={value} onChange={(event) => onChange(event.target.value)} required={required} /></div>
 }

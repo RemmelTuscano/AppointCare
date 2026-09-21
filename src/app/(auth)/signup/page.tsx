@@ -8,7 +8,19 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Stethoscope, User, MapPin, Mail, Lock, ArrowLeft } from 'lucide-react'
+import { Stethoscope, User, MapPin, Mail, Lock, Phone, ArrowLeft } from 'lucide-react'
+
+type SignupFormData = {
+  username?: string
+  clinicName?: string
+  email: string
+  location: string
+  phone: string
+  password: string
+  confirmPassword: string
+}
+
+type SignupSubmit = (event: React.FormEvent<HTMLFormElement>, role: 'patient' | 'clinic', formData: SignupFormData) => void
 
 export default function SignupPage() {
   const router = useRouter()
@@ -16,7 +28,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSignup = async (e: React.FormEvent, role: 'patient' | 'clinic', formData: any) => {
+  const handleSignup = async (e: React.FormEvent, role: 'patient' | 'clinic', formData: SignupFormData) => {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -41,6 +53,7 @@ export default function SignupPage() {
           role,
           full_name: role === 'clinic' ? formData.clinicName : formData.username,
           location: formData.location,
+          phone: formData.phone,
           ...(role === 'clinic' ? { clinic_name: formData.clinicName } : {}),
         },
         emailRedirectTo: `${location.origin}/auth/callback`,
@@ -92,11 +105,12 @@ export default function SignupPage() {
   )
 }
 
-function PatientSignupForm({ onSubmit, loading, error }: any) {
+function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit; loading: boolean; error: string }) {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     location: '',
+    phone: '',
     password: '',
     confirmPassword: '',
   })
@@ -127,6 +141,15 @@ function PatientSignupForm({ onSubmit, loading, error }: any) {
       </div>
 
       <div className="space-y-2">
+        <Label htmlFor="patient-phone">Phone number</Label>
+        <div className="relative">
+          <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Input id="patient-phone" type="tel" className="pl-10" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} autoComplete="tel" placeholder="+1 555 123 4567" required />
+        </div>
+        <p className="text-xs text-gray-500">Used for appointment reminders and updates.</p>
+      </div>
+
+      <div className="space-y-2">
         <Label>Password</Label>
         <div className="relative">
           <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -146,11 +169,12 @@ function PatientSignupForm({ onSubmit, loading, error }: any) {
   )
 }
 
-function ClinicSignupForm({ onSubmit, loading, error }: any) {
+function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit; loading: boolean; error: string }) {
   const [formData, setFormData] = useState({
     clinicName: '',
     email: '',
     location: '',
+    phone: '',
     password: '',
     confirmPassword: '',
   })
@@ -181,6 +205,15 @@ function ClinicSignupForm({ onSubmit, loading, error }: any) {
           <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input className="pl-10" value={formData.location} onChange={(e) => setFormData({ ...formData, location: e.target.value })} autoComplete="address-level1" required />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="clinic-phone">Phone number</Label>
+        <div className="relative">
+          <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Input id="clinic-phone" type="tel" className="pl-10" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} autoComplete="tel" placeholder="+1 555 123 4567" required />
+        </div>
+        <p className="text-xs text-gray-500">Used for clinic appointment notifications.</p>
       </div>
 
       <div className="space-y-2">
