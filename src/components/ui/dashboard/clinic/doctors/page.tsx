@@ -18,6 +18,25 @@ type RegisteredClinic = {
   address: string
 }
 
+const SPECIALIZATIONS = [
+  'General Practice',
+  'Cardiology',
+  'Dermatology',
+  'Dentistry',
+  'Family Medicine',
+  'Internal Medicine',
+  'Neurology',
+  'Obstetrics and Gynecology',
+  'Oncology',
+  'Ophthalmology',
+  'Orthopedics',
+  'Pediatrics',
+  'Psychiatry',
+  'Radiology',
+  'Surgery',
+  'Other',
+]
+
 export default function ClinicDoctors() {
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [clinic, setClinic] = useState<RegisteredClinic | null>(null)
@@ -144,8 +163,8 @@ export default function ClinicDoctors() {
         if (affectedApts && affectedApts.length > 0) {
           let notifiedCount = 0
           for (const apt of affectedApts) {
-            const patientData = apt.patient as any
-            const clinicData = apt.clinic as any
+            const patientData = apt.patient as { id?: string; full_name?: string | null; email?: string | null; phone?: string | null } | null
+            const clinicData = apt.clinic as { name?: string | null; address?: string | null } | null
 
             await fetch('/api/notifications/dispatch', {
               method: 'POST',
@@ -216,14 +235,20 @@ export default function ClinicDoctors() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Specialization</Label>
-                <Input 
+                <Label htmlFor="doctor-specialization">Specialization</Label>
+                <select
+                  id="doctor-specialization"
                   value={newDoctor.specialization}
                   onChange={(e) => setNewDoctor({...newDoctor, specialization: e.target.value})}
-                  placeholder="Cardiology"
-                />
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                >
+                  <option value="">Select a specialization</option>
+                  {SPECIALIZATIONS.map((specialization) => (
+                    <option key={specialization} value={specialization}>{specialization}</option>
+                  ))}
+                </select>
               </div>
-              <Button disabled={isSaving || !newDoctor.name.trim()} onClick={addDoctor} className="w-full">
+              <Button disabled={isSaving || !newDoctor.name.trim() || !newDoctor.specialization} onClick={addDoctor} className="w-full">
                 {isSaving ? 'Adding doctor...' : 'Add doctor'}
               </Button>
             </div>
