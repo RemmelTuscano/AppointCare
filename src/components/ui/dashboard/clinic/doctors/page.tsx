@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Building2, Calendar, CheckCircle, Clock, MapPin, Plus, UserCheck, UserRound, UserX, X, type LucideIcon } from 'lucide-react'
+import { Building2, Calendar, CheckCircle, ChevronDown, Clock, MapPin, Plus, UserCheck, UserRound, UserX, X, type LucideIcon } from 'lucide-react'
 import type { Doctor } from '@/types/database'
 
 type RegisteredClinic = {
@@ -41,6 +41,7 @@ export default function ClinicDoctors() {
   const [doctors, setDoctors] = useState<Doctor[]>([])
   const [clinic, setClinic] = useState<RegisteredClinic | null>(null)
   const [newDoctor, setNewDoctor] = useState({ name: '', specialization: '' })
+  const [specializationOpen, setSpecializationOpen] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [updatingDoctorId, setUpdatingDoctorId] = useState<string | null>(null)
@@ -126,6 +127,7 @@ export default function ClinicDoctors() {
     } else {
       setDoctors((current) => [data, ...current])
       setNewDoctor({ name: '', specialization: '' })
+      setSpecializationOpen(false)
       setIsDialogOpen(false)
     }
     setIsSaving(false)
@@ -232,6 +234,7 @@ export default function ClinicDoctors() {
                 title="Cancel"
                 onClick={() => {
                   setNewDoctor({ name: '', specialization: '' })
+                  setSpecializationOpen(false)
                   setIsDialogOpen(false)
                 }}
                 className="grid size-9 shrink-0 place-items-center rounded-md border border-red-200 bg-red-50 text-red-600 shadow-sm transition hover:border-red-300 hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
@@ -250,17 +253,40 @@ export default function ClinicDoctors() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="doctor-specialization">Specialization</Label>
-                <select
-                  id="doctor-specialization"
-                  value={newDoctor.specialization}
-                  onChange={(e) => setNewDoctor({...newDoctor, specialization: e.target.value})}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                >
-                  <option value="">Select a specialization</option>
-                  {SPECIALIZATIONS.map((specialization) => (
-                    <option key={specialization} value={specialization}>{specialization}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <button
+                    id="doctor-specialization"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded={specializationOpen}
+                    onClick={() => setSpecializationOpen((open) => !open)}
+                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-left text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  >
+                    <span className={newDoctor.specialization ? 'text-foreground' : 'text-muted-foreground'}>
+                      {newDoctor.specialization || 'Select a specialization'}
+                    </span>
+                    <ChevronDown className={`size-4 text-gray-500 transition-transform ${specializationOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {specializationOpen && (
+                    <div role="listbox" aria-label="Doctor specialization choices" className="absolute left-0 top-full z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-emerald-200 bg-white p-1 shadow-xl">
+                      {SPECIALIZATIONS.map((specialization) => (
+                        <button
+                          key={specialization}
+                          type="button"
+                          role="option"
+                          aria-selected={newDoctor.specialization === specialization}
+                          onClick={() => {
+                            setNewDoctor({ ...newDoctor, specialization })
+                            setSpecializationOpen(false)
+                          }}
+                          className="block w-full rounded px-3 py-2 text-left text-sm text-emerald-950 hover:bg-emerald-50"
+                        >
+                          {specialization}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <Button disabled={isSaving || !newDoctor.name.trim() || !newDoctor.specialization} onClick={addDoctor} className="w-full">
                 {isSaving ? 'Adding doctor...' : 'Add doctor'}
