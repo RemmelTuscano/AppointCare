@@ -193,22 +193,24 @@ declare
 begin
   selected_role := coalesce((new.raw_user_meta_data->>'role')::user_role, 'patient');
 
-  insert into profiles (id, role, email, full_name, location)
+  insert into profiles (id, role, email, full_name, location, phone)
   values (
     new.id,
     selected_role,
     new.email,
     coalesce(new.raw_user_meta_data->>'full_name', new.email),
-    new.raw_user_meta_data->>'location'
+    new.raw_user_meta_data->>'location',
+    new.raw_user_meta_data->>'phone'
   )
   on conflict (id) do nothing;
 
   if selected_role = 'clinic' then
-    insert into clinics (user_id, name, address, email)
+    insert into clinics (user_id, name, address, phone, email)
     values (
       new.id,
       coalesce(new.raw_user_meta_data->>'clinic_name', new.raw_user_meta_data->>'full_name', 'New clinic'),
       coalesce(new.raw_user_meta_data->>'location', 'Address pending'),
+      new.raw_user_meta_data->>'phone',
       new.email
     )
     on conflict (user_id) do nothing;
