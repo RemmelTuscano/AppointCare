@@ -21,7 +21,7 @@ export default async function DashboardLayout({
 
   let profile = null
   const metadataRole = user.user_metadata.role
-  let role = metadataRole === 'clinic' || metadataRole === 'patient' ? metadataRole : 'patient'
+  let role = metadataRole === 'admin' || metadataRole === 'clinic' || metadataRole === 'patient' ? metadataRole : 'patient'
 
   // The profile is preferred, while Auth metadata keeps the dashboard available during RLS repairs.
   try {

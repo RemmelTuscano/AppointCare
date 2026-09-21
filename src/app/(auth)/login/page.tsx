@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Stethoscope, User, Mail, Lock, Globe } from 'lucide-react'
+import { ShieldCheck, Stethoscope, User, Mail, Lock, Globe } from 'lucide-react'
+
+type LoginRole = 'patient' | 'clinic' | 'admin'
 
 const PRESET_PATIENT_ACCOUNT = {
   email: 'patient@appointcare.test',
@@ -25,7 +26,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [role, setRole] = useState<'patient' | 'clinic'>('patient')
+  const [role, setRole] = useState<LoginRole>('patient')
   const router = useRouter()
   const supabase = createClient()
 
@@ -69,7 +70,7 @@ export default function LoginPage() {
           .single()
 
         const metadataRole = data.user.user_metadata.role
-        const userRole = profile?.role || (metadataRole === 'clinic' || metadataRole === 'patient' ? metadataRole : null)
+        const userRole = profile?.role || (metadataRole === 'admin' || metadataRole === 'clinic' || metadataRole === 'patient' ? metadataRole : null)
 
         if (!userRole) {
           await supabase.auth.signOut()
@@ -134,42 +135,18 @@ export default function LoginPage() {
         <CardDescription>Sign in to manage your appointments</CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="patient" className="w-full" onValueChange={(v) => setRole(v as 'patient' | 'clinic')}>
-          <TabsList className="mb-6 grid w-full grid-cols-2">
-            <TabsTrigger value="patient" className="flex items-center gap-2">
-              <User className="h-4 w-4" /> Patient
-            </TabsTrigger>
-            <TabsTrigger value="clinic" className="flex items-center gap-2">
-              <Stethoscope className="h-4 w-4" /> Clinic
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="patient">
-            <LoginForm
-              email={email}
-              setEmail={setEmail}
-              password={password}
-              setPassword={setPassword}
-              loading={loading}
-              error={error}
-              onSubmit={handleLogin}
-              onGoogleLogin={handleGoogleLogin}
-            />
-          </TabsContent>
-
-          <TabsContent value="clinic">
-            <LoginForm
-              email={email}
-              setEmail={setEmail}
-              password={password}
-              setPassword={setPassword}
-              loading={loading}
-              error={error}
-              onSubmit={handleLogin}
-              onGoogleLogin={handleGoogleLogin}
-            />
-          </TabsContent>
-        </Tabs>
+        <LoginForm
+          role={role}
+          onRoleChange={setRole}
+          email={email}
+          setEmail={setEmail}
+          password={password}
+          setPassword={setPassword}
+          loading={loading}
+          error={error}
+          onSubmit={handleLogin}
+          onGoogleLogin={handleGoogleLogin}
+        />
 
         <div className="mt-6 flex flex-col items-center gap-2 text-sm text-gray-600">
           <button
@@ -203,6 +180,8 @@ export default function LoginPage() {
 }
 
 type LoginFormProps = {
+  role: LoginRole
+  onRoleChange: (role: LoginRole) => void
   email: string
   setEmail: Dispatch<SetStateAction<string>>
   password: string
@@ -213,10 +192,30 @@ type LoginFormProps = {
   onGoogleLogin: () => void
 }
 
-function LoginForm({ email, setEmail, password, setPassword, loading, error, onSubmit, onGoogleLogin }: LoginFormProps) {
+function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword, loading, error, onSubmit, onGoogleLogin }: LoginFormProps) {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {error && <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      <div className="space-y-2">
+        <Label htmlFor="login-role">Sign in as</Label>
+        <div className="relative">
+          <select
+            id="login-role"
+            value={role}
+            onChange={(event) => onRoleChange(event.target.value as LoginRole)}
+            className="flex h-10 w-full appearance-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <option value="patient">Patient</option>
+            <option value="clinic">Clinic</option>
+            <option value="admin">Administrator</option>
+          </select>
+          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+            {role === 'patient' && <User className="h-4 w-4" />}
+            {role === 'clinic' && <Stethoscope className="h-4 w-4" />}
+            {role === 'admin' && <ShieldCheck className="h-4 w-4" />}
+          </div>
+        </div>
+      </div>
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <div className="relative">
