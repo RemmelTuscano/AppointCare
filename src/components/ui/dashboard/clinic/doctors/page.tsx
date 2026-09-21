@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Building2, Calendar, CheckCircle, Clock, MapPin, Plus, UserCheck, UserRound, UserX, type LucideIcon } from 'lucide-react'
+import { Building2, Calendar, CheckCircle, Clock, MapPin, Plus, UserCheck, UserRound, UserX, X, type LucideIcon } from 'lucide-react'
 import type { Doctor } from '@/types/database'
 
 type RegisteredClinic = {
@@ -222,9 +222,23 @@ export default function ClinicDoctors() {
             </Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Doctor</DialogTitle>
-            </DialogHeader>
+            <div className="flex items-start justify-between gap-4">
+              <DialogHeader>
+                <DialogTitle>Add New Doctor</DialogTitle>
+              </DialogHeader>
+              <button
+                type="button"
+                aria-label="Cancel adding doctor"
+                title="Cancel"
+                onClick={() => {
+                  setNewDoctor({ name: '', specialization: '' })
+                  setIsDialogOpen(false)
+                }}
+                className="rounded-md p-2 text-gray-500 transition hover:bg-emerald-50 hover:text-emerald-800"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
             <div className="space-y-4 pt-4">
               <div className="space-y-2">
                 <Label>Name</Label>
