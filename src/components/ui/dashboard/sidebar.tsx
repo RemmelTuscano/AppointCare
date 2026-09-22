@@ -60,7 +60,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/login')
+    router.replace('/login')
     router.refresh()
   }
 

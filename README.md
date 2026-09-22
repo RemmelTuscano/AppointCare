@@ -20,6 +20,14 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Gemini AI
+
+Add a Gemini API key to your environment before using the in-app assistant:
+
+```
+GEMINI_API_KEY=your-gemini-api-key
+```
+
 ## Supabase OAuth
 
 Google sign-in returns to the origin currently open in the browser. In Supabase Dashboard, go to **Authentication > URL Configuration** and allow each development callback you use:

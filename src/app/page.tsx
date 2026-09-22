@@ -1,6 +1,5 @@
 ﻿import Link from 'next/link'
 import {
-  ArrowRight,
   BellRing,
   CalendarDays,
   Check,
@@ -10,6 +9,7 @@ import {
   Sparkles,
   UsersRound,
 } from 'lucide-react'
+import { LandingAuthPanel } from '@/components/ui/landing-auth-panel'
 
 const features = [
   {
@@ -44,7 +44,7 @@ export default function Page() {
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(13,58,48,0.97)_0%,rgba(18,76,64,0.88)_46%,rgba(22,73,62,0.38)_100%)]" />
         <div className="absolute -bottom-32 left-1/2 h-72 w-[70rem] -translate-x-1/2 rounded-[50%] border border-white/20 bg-white/5" />
 
-        <div className="relative mx-auto flex min-h-[calc(100svh-1rem)] max-w-7xl flex-col px-6 pb-12 pt-6 lg:px-10">
+        <div className="relative mx-auto flex min-h-[calc(100svh-1rem)] w-full max-w-[1600px] flex-col px-6 pb-12 pt-6 lg:px-12">
           <header className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3 font-semibold text-white" aria-label="AppointCare home">
               <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#b8e2b9] text-[#174c40]">
@@ -52,17 +52,7 @@ export default function Page() {
               </span>
               <span className="text-xl">AppointCare</span>
             </Link>
-            <nav className="flex items-center gap-3" aria-label="Main navigation">
-              <Link href="/login" className="hidden px-3 py-2 text-sm font-medium text-white/85 transition hover:text-white sm:block">
-                Sign in
-              </Link>
-              <Link
-                href="/signup"
-                className="inline-flex items-center gap-2 rounded-md bg-[#d8f2d4] px-4 py-2.5 text-sm font-semibold text-[#174c40] transition hover:bg-white"
-              >
-                Get started <ArrowRight className="h-4 w-4" />
-              </Link>
-            </nav>
+            <LandingAuthPanel />
           </header>
 
           <div className="flex flex-1 items-center py-14 lg:py-20">
@@ -76,12 +66,7 @@ export default function Page() {
                   A simpler way for people and clinics to find time for care, manage visits, and stay connected.
                 </p>
                 <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                  <Link
-                    href="/signup"
-                    className="inline-flex items-center justify-center gap-2 rounded-md bg-[#b8e2b9] px-5 py-3.5 font-semibold text-[#174c40] transition hover:bg-[#d8f2d4]"
-                  >
-                    Create your account <ArrowRight className="h-4 w-4" />
-                  </Link>
+                  <LandingAuthPanel variant="cta" />
                   <a
                     href="#how-it-works"
                     className="inline-flex items-center justify-center gap-2 rounded-md border border-white/30 px-5 py-3.5 font-semibold text-white transition hover:bg-white/10"
@@ -101,7 +86,7 @@ export default function Page() {
         </div>
       </section>
 
-      <section id="features" className="mx-auto max-w-7xl px-6 py-20 lg:px-10 lg:py-28">
+      <section id="features" className="mx-auto w-full max-w-[1600px] px-6 py-20 lg:px-12 lg:py-28">
         <div className="max-w-2xl">
           <p className="text-sm font-semibold uppercase text-[#3d8061]">Built for the rhythm of care</p>
           <h2 className="mt-3 text-3xl font-semibold leading-tight sm:text-4xl">Less coordination. More attention where it matters.</h2>
@@ -118,13 +103,11 @@ export default function Page() {
       </section>
 
       <section id="how-it-works" className="border-y border-[#d8e8da] bg-[#eaf5e9]">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 py-20 lg:grid-cols-[0.85fr_1.15fr] lg:px-10 lg:py-24">
+        <div className="mx-auto grid w-full max-w-[1600px] gap-10 px-6 py-20 lg:grid-cols-[0.85fr_1.15fr] lg:px-12 lg:py-24">
           <div>
             <p className="text-sm font-semibold uppercase text-[#3d8061]">A clearer care journey</p>
             <h2 className="mt-3 text-3xl font-semibold leading-tight sm:text-4xl">Everything you need to make the next appointment easy.</h2>
-            <Link href="/signup" className="mt-7 inline-flex items-center gap-2 font-semibold text-[#27684e] hover:text-[#174c40]">
-              Join AppointCare <ArrowRight className="h-4 w-4" />
-            </Link>
+            <LandingAuthPanel variant="cta" />
           </div>
           <ol className="grid gap-4 sm:grid-cols-3">
             {careSteps.map((step, index) => (
@@ -137,20 +120,18 @@ export default function Page() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-20 lg:px-10">
+      <section className="mx-auto w-full max-w-[1600px] px-6 py-20 lg:px-12">
         <div className="flex flex-col justify-between gap-8 border-l-4 border-[#4f9a6d] bg-white px-7 py-8 shadow-sm sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-2 text-[#3d8061]"><UsersRound className="h-5 w-5" /><span className="text-sm font-semibold uppercase">Your care, coordinated</span></div>
             <h2 className="mt-3 text-2xl font-semibold">Ready to make appointments feel lighter?</h2>
           </div>
-          <Link href="/signup" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-[#27684e] px-5 py-3 font-semibold text-white transition hover:bg-[#174c40]">
-            Get started <ArrowRight className="h-4 w-4" />
-          </Link>
+          <LandingAuthPanel variant="cta" />
         </div>
       </section>
 
       <footer className="border-t border-[#d8e8da] px-6 py-7 lg:px-10">
-        <div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 text-sm text-[#587269] sm:flex-row">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-col justify-between gap-3 text-sm text-[#587269] sm:flex-row">
           <span>AppointCare</span>
           <span>Care scheduling for people and clinics.</span>
         </div>

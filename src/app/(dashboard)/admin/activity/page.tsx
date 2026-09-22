@@ -23,9 +23,9 @@ function ActivityIcon({ entityType }: { entityType: string }) {
 
 export default async function AdminActivityPage() {
   const admin = createAdminClient()
-  const { data: activityRows } = admin
+  const { data: activityRows, error: activityError } = admin
     ? await admin.from('activity_logs').select('id, action, entity_type, summary, created_at, actor:profiles!activity_logs_actor_id_fkey(full_name, email)').order('created_at', { ascending: false }).limit(100)
-    : { data: [] }
+    : { data: [], error: new Error('Admin database is not configured.') }
   const activities = (activityRows || []) as ActivityRow[]
 
   return (
@@ -38,6 +38,12 @@ export default async function AdminActivityPage() {
         </div>
         <div className="inline-flex items-center gap-2 text-sm font-medium text-emerald-700"><Activity className="h-4 w-4" /> Last 100 events</div>
       </div>
+
+      {activityError && (
+        <div className="border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+          Activity logging is not available yet. Run <code className="font-semibold">scripts/activity-log.sql</code> in Supabase SQL Editor to create the activity log table and triggers.
+        </div>
+      )}
 
       <section className="border border-emerald-100 bg-white shadow-sm">
         <div className="border-b border-emerald-100 px-5 py-4"><h2 className="font-semibold text-emerald-950">Recent activity</h2><p className="mt-1 text-sm text-gray-500">Newest events appear first.</p></div>

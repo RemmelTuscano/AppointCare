@@ -91,6 +91,15 @@ export default function PatientClinics() {
       return
     }
 
+    await supabase.from('activity_logs').insert({
+      actor_id: user.id,
+      action: 'appointment_requested',
+      entity_type: 'appointment',
+      entity_id: apt.id,
+      summary: `Appointment requested at ${selectedClinic.name}`,
+      metadata: { clinic: selectedClinic.name, doctor: chosenDoctor?.name, scheduledAt: apt.scheduled_at },
+    })
+
     await fetch('/api/notifications/dispatch', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'created', appointmentId: apt.id, patientEmail: user.email, patientPhone: profile?.phone, patientName: profile?.full_name, patientUserId: user.id, clinicUserId: selectedClinic.user_id, clinicName: selectedClinic.name, clinicAddress: selectedClinic.address, doctorName: chosenDoctor?.name, doctorSpecialization: chosenDoctor?.specialization, scheduledAt: apt.scheduled_at, notes }),
@@ -119,11 +128,11 @@ export default function PatientClinics() {
 
       {loading && <div className="py-12 text-center text-muted-foreground">Loading clinic directory...</div>}
 
-      {!loading && !selectedClinic && <div className="flex flex-row gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
+      {!loading && !selectedClinic && <div className="flex max-h-[min(70vh,48rem)] flex-col gap-4 overflow-y-auto overflow-x-hidden pb-4 pr-2">
         {clinics.map((clinic) => (
-          <Card key={clinic.id} className="w-[min(88vw,24rem)] shrink-0 snap-start transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+          <Card key={clinic.id} className="w-full shrink-0 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-emerald-950">
+              <CardTitle className="flex items-center gap-2 text-xl font-bold text-emerald-950 sm:text-2xl">
                 <Stethoscope className="w-5 h-5 text-emerald-700" />
                 {clinic.name}
               </CardTitle>

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/ui/dashboard/sidebar'
+import { AIAssistant } from '@/components/ui/ai-assistant'
 
 export default async function DashboardLayout({
   children,
@@ -43,11 +44,12 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(187,247,208,0.55),transparent_30%),var(--background)] text-foreground lg:flex">
       <Sidebar role={role} userName={profile?.full_name || user.email || 'User'} />
-      <main className="min-w-0 flex-1 overflow-auto p-4 pt-20 lg:p-8">
-        <div className="mx-auto max-w-7xl">
+      <main className="min-w-0 flex-1 overflow-auto p-4 pt-20 sm:p-6 sm:pt-20 lg:p-10">
+        <div className="mx-auto w-full max-w-[1600px]">
           {children}
         </div>
       </main>
+      <AIAssistant />
     </div>
   )
 }

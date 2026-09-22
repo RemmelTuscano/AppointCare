@@ -7,26 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ShieldCheck, Stethoscope, User, Mail, Lock, Globe } from 'lucide-react'
+import { ArrowLeft, ShieldCheck, Stethoscope, User, Mail, Lock, Globe } from 'lucide-react'
 
 type LoginRole = 'patient' | 'clinic' | 'admin'
 
-const PRESET_PATIENT_ACCOUNT = {
-  email: 'patient@appointcare.test',
-  password: 'Patient@12345',
-}
-
-const PRESET_CLINIC_ACCOUNT = {
-  email: 'clinic@appointcare.test',
-  password: 'Clinic@12345',
-}
-
-const PRESET_ADMIN_ACCOUNT = {
-  email: 'admin@appointcare.test',
-  password: 'Admin@12345',
-}
-
-export default function LoginPage() {
+export default function LoginPage({ onSwitchToSignup }: { onSwitchToSignup?: () => void } = {}) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -114,37 +99,25 @@ export default function LoginPage() {
     })
   }
 
-  const handleUsePresetPatientAccount = () => {
-    setRole('patient')
-    setEmail(PRESET_PATIENT_ACCOUNT.email)
-    setPassword(PRESET_PATIENT_ACCOUNT.password)
-    setError('')
-  }
-
-  const handleUsePresetClinicAccount = () => {
-    setRole('clinic')
-    setEmail(PRESET_CLINIC_ACCOUNT.email)
-    setPassword(PRESET_CLINIC_ACCOUNT.password)
-    setError('')
-  }
-
-  const handleUsePresetAdminAccount = () => {
-    setRole('admin')
-    setEmail(PRESET_ADMIN_ACCOUNT.email)
-    setPassword(PRESET_ADMIN_ACCOUNT.password)
-    setError('')
-  }
-
   return (
-    <Card className="border-0 shadow-2xl">
+    <div>
+      <button
+        type="button"
+        onClick={() => router.push('/')}
+        className="mb-4 inline-flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-[#27684e] transition hover:bg-[#dff0df] hover:text-[#174c40]"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to home
+      </button>
+      <Card className="border border-[#c8dfca] bg-[#fafffa] shadow-[0_24px_70px_rgba(23,76,64,0.16)]">
       <CardHeader className="space-y-1 text-center">
         <div className="mb-4 flex justify-center">
-          <div className="rounded-xl bg-blue-600 p-3">
+          <div className="rounded-xl bg-[#174c40] p-3 shadow-lg shadow-[#174c40]/20">
             <Stethoscope className="h-8 w-8 text-white" />
           </div>
         </div>
-        <CardTitle className="text-2xl font-bold text-gray-900">AppointCare</CardTitle>
-        <CardDescription>Sign in to manage your appointments</CardDescription>
+        <CardTitle className="text-2xl font-bold text-[#174c40]">AppointCare</CardTitle>
+        <CardDescription className="text-[#587269]">Sign in to manage your appointments</CardDescription>
       </CardHeader>
       <CardContent>
         <LoginForm
@@ -160,41 +133,21 @@ export default function LoginPage() {
           onGoogleLogin={handleGoogleLogin}
         />
 
-        <div className="mt-6 flex flex-col items-center gap-2 text-sm text-gray-600">
-          <button
-            type="button"
-            onClick={handleUsePresetPatientAccount}
-            className="font-medium text-blue-600 hover:underline"
-          >
-            Use preset patient account
-          </button>
-          <button
-            type="button"
-            onClick={handleUsePresetClinicAccount}
-            className="font-medium text-blue-600 hover:underline"
-          >
-            Use preset clinic account
-          </button>
-          <button
-            type="button"
-            onClick={handleUsePresetAdminAccount}
-            className="font-medium text-blue-600 hover:underline"
-          >
-            Use preset admin account
-          </button>
+        <div className="mt-6 flex justify-center text-sm text-gray-600">
           <div>
             Don&apos;t have an account?{' '}
             <button
               type="button"
-              onClick={() => router.push('/signup')}
-              className="font-medium text-blue-600 hover:underline"
+              onClick={() => onSwitchToSignup ? onSwitchToSignup() : router.push('/signup')}
+              className="font-medium text-[#27684e] hover:text-[#174c40] hover:underline"
             >
               Sign up
             </button>
           </div>
         </div>
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   )
 }
 
@@ -222,13 +175,13 @@ function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword,
             id="login-role"
             value={role}
             onChange={(event) => onRoleChange(event.target.value as LoginRole)}
-            className="flex h-10 w-full appearance-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex h-10 w-full appearance-none rounded-md border border-[#c8dfca] bg-white px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4f9a6d] focus-visible:ring-offset-2"
           >
             <option value="patient">Patient</option>
             <option value="clinic">Clinic</option>
             <option value="admin">Administrator</option>
           </select>
-          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#587269]">
             {role === 'patient' && <User className="h-4 w-4" />}
             {role === 'clinic' && <Stethoscope className="h-4 w-4" />}
             {role === 'admin' && <ShieldCheck className="h-4 w-4" />}
@@ -238,7 +191,7 @@ function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword,
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <div className="relative">
-          <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Mail className="absolute left-3 top-3 h-4 w-4 text-[#587269]" />
           <Input
             id="email"
             type="email"
@@ -255,7 +208,7 @@ function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword,
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
         <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <Lock className="absolute left-3 top-3 h-4 w-4 text-[#587269]" />
           <Input
             id="password"
             type="password"
@@ -269,20 +222,20 @@ function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword,
         </div>
       </div>
 
-      <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
+      <Button type="submit" className="w-full bg-[#27684e] text-white hover:bg-[#174c40]" disabled={loading}>
         {loading ? 'Signing in...' : 'Sign In'}
       </Button>
 
       <div className="relative my-4">
         <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-gray-200" />
+          <span className="w-full border-t border-[#d8e8da]" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-gray-500">Or continue with</span>
+          <span className="bg-[#fafffa] px-2 text-[#587269]">Or continue with</span>
         </div>
       </div>
 
-      <Button type="button" variant="outline" className="w-full" onClick={onGoogleLogin}>
+      <Button type="button" variant="outline" className="w-full border-[#c8dfca] text-[#27684e] hover:bg-[#eaf5e9]" onClick={onGoogleLogin}>
         <Globe className="mr-2 h-4 w-4" />
         Google
       </Button>

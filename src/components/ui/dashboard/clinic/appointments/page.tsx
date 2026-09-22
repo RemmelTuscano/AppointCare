@@ -166,6 +166,16 @@ export default function ClinicAppointments() {
       .single()
 
     if (apt && !error) {
+      const { data: { user: actor } } = await supabase.auth.getUser()
+      await supabase.from('activity_logs').insert({
+        actor_id: actor?.id,
+        action: status === 'confirmed' ? 'appointment_confirmed' : 'appointment_cancelled',
+        entity_type: 'appointment',
+        entity_id: id,
+        summary: `Appointment ${status} for ${apt.patient?.full_name || 'patient'}`,
+        metadata: { scheduleId, clinic: apt.clinic?.name, doctor: apt.doctor?.name },
+      })
+
       setAppointments((current) => sortAppointments(current.map((appointment) => (
         appointment.id === id ? { ...appointment, status } : appointment
       ))))

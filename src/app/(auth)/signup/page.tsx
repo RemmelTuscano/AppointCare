@@ -26,7 +26,7 @@ function digitsOnly(value: string) {
   return value.replace(/\D/g, '')
 }
 
-export default function SignupPage() {
+export default function SignupPage({ onSwitchToLogin }: { onSwitchToLogin?: () => void } = {}) {
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
@@ -75,7 +75,7 @@ export default function SignupPage() {
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" className="mb-4" onClick={() => router.push('/login')}>
+      <Button variant="ghost" className="mb-4" onClick={() => onSwitchToLogin ? onSwitchToLogin() : router.push('/login')}>
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Login
       </Button>
 

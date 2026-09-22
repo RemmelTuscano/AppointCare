@@ -1,6 +1,26 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { dispatchAutomatedNotifications } from '@/lib/notifications'
+import { createClient as createServerClient } from '@/lib/supabase/server'
+import { recordActivity } from '@/lib/activity'
+
+type RelatedPerson = {
+  full_name?: string | null
+  email?: string | null
+  phone?: string | null
+}
+
+type RelatedClinic = {
+  user_id?: string | null
+  name?: string | null
+  address?: string | null
+}
+
+type RelatedDoctor = {
+  name?: string | null
+  specialization?: string | null
+  is_available?: boolean | null
+}
 
 export async function POST(request: Request) {
   try {
@@ -52,7 +72,7 @@ export async function POST(request: Request) {
     }
 
     // Build update payload
-    const updatePayload: Record<string, any> = {
+    const updatePayload: Record<string, string> = {
       scheduled_at: new Date(newScheduledAt).toISOString(),
       status: 'confirmed',
     }
@@ -87,9 +107,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: updateErr?.message || 'Failed to update appointment' }, { status: 500 })
     }
 
-    const patientData = updatedApt.patient as any
-    const clinicData = updatedApt.clinic as any
-    const doctorData = updatedApt.doctor as any
+    const patientData = updatedApt.patient as RelatedPerson
+    const clinicData = updatedApt.clinic as RelatedClinic
+    const doctorData = updatedApt.doctor as RelatedDoctor
+    const sessionClient = await createServerClient()
+    const { data: { user: actor } } = sessionClient ? await sessionClient.auth.getUser() : { data: { user: null } }
+
+    await recordActivity({
+      actorId: actor?.id,
+      action: 'appointment_rescheduled',
+      entityType: 'appointment',
+      entityId: updatedApt.id,
+      summary: `Appointment for ${patientData?.full_name || 'patient'} was rescheduled`,
+      metadata: {
+        clinic: clinicData?.name,
+        doctor: doctorData?.name,
+        scheduledAt: updatedApt.scheduled_at,
+        reason: reason || null,
+      },
+    })
 
     // Dispatch automated Email, SMS, and in-app notifications with Schedule ID
     const notificationResult = await dispatchAutomatedNotifications({
@@ -99,7 +135,7 @@ export async function POST(request: Request) {
       patientPhone: patientData?.phone,
       patientName: patientData?.full_name,
       patientUserId: updatedApt.patient_id,
-      clinicUserId: clinicData?.user_id,
+      clinicUserId: clinicData?.user_id ?? undefined,
       clinicName: clinicData?.name,
       clinicAddress: clinicData?.address,
       doctorName: doctorData?.name,

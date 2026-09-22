@@ -1,4 +1,4 @@
-import { Check, Clock3, Eye, Search, Stethoscope } from 'lucide-react'
+import { Check, Clock3, Eye, Search } from 'lucide-react'
 import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -62,7 +62,6 @@ export default async function AdminClinicsPage() {
     <div className="space-y-7 pb-10">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div><p className="text-sm font-semibold uppercase tracking-[0.16em] text-emerald-700">Directory control</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-emerald-950">Clinic management</h1><p className="mt-2 text-gray-600">Review submissions and keep the care directory trustworthy.</p></div>
-        <button className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900"><Stethoscope className="h-4 w-4" /> Add clinic</button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
