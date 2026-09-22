@@ -79,17 +79,31 @@ export default function PatientClinics() {
 
     const chosenDoctor = doctors.find((d) => d.id === selectedDoctor)
 
-    const { data: apt, error: bookingError } = await supabase.rpc('book_clinic_appointment', {
-      p_clinic_id: selectedClinic.id,
-      p_doctor_id: selectedDoctor,
-      p_scheduled_at: scheduledAt.toISOString(),
-      p_notes: notes.trim() || null,
+    const bookingResponse = await fetch('/api/appointments/book', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clinicId: selectedClinic.id,
+        doctorId: selectedDoctor,
+        scheduledAt: scheduledAt.toISOString(),
+        notes,
+      }),
     })
+    const bookingPayload = await bookingResponse.json()
 
-    if (bookingError || !apt) {
-      setMessage(bookingError?.message || 'We could not request this appointment. Please try again.')
+    if (!bookingResponse.ok || !bookingPayload.appointment) {
+      setMessage(bookingPayload.error || 'We could not request this appointment. Please try again.')
+      if (bookingResponse.status === 409 && ['CLINIC_UNAVAILABLE', 'DOCTOR_UNAVAILABLE'].includes(bookingPayload.code)) {
+        setSelectedClinic(null)
+        setDoctors([])
+        setSelectedDoctor('')
+        setSelectedDate(undefined)
+        setBookingStarted(false)
+      }
       return
     }
+
+    const apt = bookingPayload.appointment
 
     await supabase.from('activity_logs').insert({
       actor_id: user.id,
@@ -246,8 +260,10 @@ export default function PatientClinics() {
                   />
                 </div>
                 <div>
-                  <h3 className="mb-3 font-medium text-emerald-950">Notes (optional)</h3>
+                  <label htmlFor="appointment-notes" className="mb-3 block font-medium text-emerald-950">Notes (optional)</label>
                   <textarea
+                    id="appointment-notes"
+                    name="notes"
                     className="h-24 w-full resize-none rounded-md border border-input p-3 outline-none focus:border-emerald-500 focus:ring-3 focus:ring-emerald-100"
                     placeholder="Any specific concerns..."
                     value={notes}

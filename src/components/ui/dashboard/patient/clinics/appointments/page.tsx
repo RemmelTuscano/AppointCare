@@ -9,10 +9,8 @@ import { format } from 'date-fns'
 import {
   CalendarDays,
   Check,
-  Clock,
   Copy,
   Hash,
-  Info,
   MapPin,
   Search,
   Stethoscope,
@@ -26,6 +24,7 @@ type PatientAppointment = {
   doctor_id: string | null
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
   scheduled_at: string
+  created_at: string
   notes: string | null
   clinic: { id: string; name: string; address: string } | null
   doctor: { id: string; name: string; specialization: string | null; is_available: boolean } | null
@@ -48,6 +47,7 @@ export default function PatientAppointments() {
         .from('appointments')
         .select('*, clinic:clinics(id, name, address), doctor:doctors(id, name, specialization, is_available)')
         .eq('patient_id', user.id)
+        .order('created_at', { ascending: false })
         .order('scheduled_at', { ascending: false })
 
       setAppointments(data || [])
