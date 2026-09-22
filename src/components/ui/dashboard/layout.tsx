@@ -49,7 +49,7 @@ export default async function DashboardLayout({
           {children}
         </div>
       </main>
-      <AIAssistant />
+      {role !== 'admin' && <AIAssistant />}
     </div>
   )
 }
