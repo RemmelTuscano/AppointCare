@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ArrowLeft, CheckCircle2, MapPin, Stethoscope, UserCheck, UserRound, UsersRound } from 'lucide-react'
 
 type ClinicDoctor = {
@@ -33,6 +34,7 @@ export default function PatientClinics() {
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
+  const [confirmedAppointment, setConfirmedAppointment] = useState<{ clinicName: string; doctorName?: string; scheduledAt: string } | null>(null)
   const supabase = createClient()
   const router = useRouter()
 
@@ -123,7 +125,7 @@ export default function PatientClinics() {
     setSelectedDate(undefined)
     setSelectedDoctor('')
     setNotes('')
-    router.push('/patient/appointments')
+    setConfirmedAppointment({ clinicName: selectedClinic.name, doctorName: chosenDoctor?.name, scheduledAt: apt.scheduled_at })
   }
 
   return (
@@ -281,6 +283,31 @@ export default function PatientClinics() {
           )}
         </section>
       )}
+
+      <Dialog open={!!confirmedAppointment} onOpenChange={(open) => { if (!open) { setConfirmedAppointment(null); router.push('/patient/appointments') } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-950">
+              <CheckCircle2 className="size-5 text-emerald-600" /> Appointment requested
+            </DialogTitle>
+          </DialogHeader>
+          {confirmedAppointment && (
+            <div className="space-y-3 pt-2 text-sm">
+              <p className="text-muted-foreground">
+                Your request has been sent to <span className="font-medium text-emerald-950">{confirmedAppointment.clinicName}</span>
+                {confirmedAppointment.doctorName ? <> with <span className="font-medium text-emerald-950">{confirmedAppointment.doctorName}</span></> : null}.
+                The clinic will confirm your appointment shortly.
+              </p>
+              <p className="text-muted-foreground">
+                Requested date: <span className="font-medium text-emerald-950">{new Date(confirmedAppointment.scheduledAt).toLocaleDateString()}</span>
+              </p>
+              <Button className="w-full" onClick={() => { setConfirmedAppointment(null); router.push('/patient/appointments') }}>
+                View my appointments
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

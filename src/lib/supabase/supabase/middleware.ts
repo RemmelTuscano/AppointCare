@@ -37,6 +37,25 @@ export async function updateSession(request: NextRequest) {
     },
   })
 
-  await supabase.auth.getUser()
+  try {
+    await supabase.auth.getUser()
+  } catch (error) {
+    // Stale/invalid refresh token cookie (e.g. expired or from a signed-out session) - clear it so it stops being resent.
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      error.code === 'refresh_token_not_found'
+    ) {
+      request.cookies.getAll().forEach((cookie) => {
+        if (cookie.name.includes('-auth-token')) {
+          response.cookies.delete(cookie.name)
+        }
+      })
+    } else {
+      throw error
+    }
+  }
+
   return response
 }

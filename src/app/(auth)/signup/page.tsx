@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getSiteUrl } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -60,7 +61,7 @@ export default function SignupPage({ onSwitchToLogin }: { onSwitchToLogin?: () =
           phone: formData.phone,
           ...(role === 'clinic' ? { clinic_name: formData.clinicName } : {}),
         },
-        emailRedirectTo: `${location.origin}/auth/callback`,
+        emailRedirectTo: `${getSiteUrl()}/auth/callback`,
       },
     })
 

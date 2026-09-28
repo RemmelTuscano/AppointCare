@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { ChangePasswordDialog } from '@/components/ui/change-password-dialog'
 import { KeyRound, MapPin, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
@@ -86,8 +87,7 @@ export default async function AccountPage() {
           <CardContent className="space-y-4">
             <div>
               <p className="mb-2 text-sm font-medium text-muted-foreground">Password</p>
-              <p className="mb-4 text-sm text-muted-foreground">Last changed: Never</p>
-              <Button variant="outline">Change Password</Button>
+              <ChangePasswordDialog />
             </div>
           </CardContent>
         </Card>

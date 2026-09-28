@@ -50,6 +50,8 @@ export function NotificationList({ notifications: initialNotifications, appointm
       setNotifications((current) =>
         current.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n))
       )
+      // Invalidate the client router cache so revisiting this page refetches the persisted read state.
+      router.refresh()
     }
 
     router.push(appointmentPath)
@@ -65,6 +67,7 @@ export function NotificationList({ notifications: initialNotifications, appointm
       .in('id', unreadIds)
 
     setNotifications((current) => current.map((n) => ({ ...n, is_read: true })))
+    router.refresh()
   }
 
   const filtered = notifications.filter((n) => {

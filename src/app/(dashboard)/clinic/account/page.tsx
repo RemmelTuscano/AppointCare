@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ChangePasswordDialog } from '@/components/ui/change-password-dialog'
 import { BadgeCheck, Building2, KeyRound, Pencil } from 'lucide-react'
 
 type ClinicProfile = {
@@ -179,8 +180,7 @@ export default function ClinicAccountPage() {
           <CardContent className="space-y-4">
             <div>
               <p className="mb-2 text-sm font-medium text-muted-foreground">Password</p>
-              <p className="mb-4 text-sm text-muted-foreground">Last changed: Never</p>
-              <Button variant="outline">Change password</Button>
+              <ChangePasswordDialog />
             </div>
           </CardContent>
         </Card>

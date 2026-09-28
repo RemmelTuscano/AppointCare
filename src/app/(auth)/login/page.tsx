@@ -3,6 +3,7 @@
 import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { getSiteUrl } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -94,7 +95,7 @@ export default function LoginPage({ onSwitchToSignup }: { onSwitchToSignup?: () 
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${location.origin}/auth/callback?role=${encodeURIComponent(role)}`,
+        redirectTo: `${getSiteUrl()}/auth/callback?role=${encodeURIComponent(role)}`,
       },
     })
   }
