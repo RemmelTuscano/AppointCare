@@ -12,8 +12,8 @@ export default async function AdminClinicDetailsPage({ params }: { params: Promi
   const admin = createAdminClient()
   if (!admin) notFound()
 
-  const { data: clinic } = await admin.from('clinics').select('id, user_id, name, address, phone, email, description, is_verified, created_at, permit_url').eq('id', id).single()
-  if (!clinic) notFound()
+  const { data: clinic, error: clinicError } = await admin.from('clinics').select('id, user_id, name, address, phone, email, description, is_verified, created_at, permit_url').eq('id', id).single()
+  if (clinicError || !clinic) notFound()
 
   const permitPublicUrl = clinic.permit_url
     ? admin.storage.from('clinic_permits').getPublicUrl(clinic.permit_url).data?.publicUrl

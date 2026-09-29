@@ -33,6 +33,7 @@ export default function ClinicAccountPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [permitUploading, setPermitUploading] = useState(false)
   const [permitMessage, setPermitMessage] = useState<string | null>(null)
+  const [selectedPermitFile, setSelectedPermitFile] = useState<File | null>(null)
   const supabase = createClient()
 
   const loadClinic = useEffectEvent(async () => {
@@ -49,8 +50,17 @@ export default function ClinicAccountPage() {
         .eq('user_id', user.id)
         .maybeSingle()
 
-      if (error || !data) {
-        setMessage(error ? 'We could not load your clinic profile. Please try again.' : 'No clinic profile is linked to this account yet.')
+      if (error) {
+        if (error.code === '42703') {
+          setMessage('The clinic profile is missing a required column. Run scripts/clinic-permits.sql in the Supabase SQL Editor, then reload this page.')
+        } else {
+          setMessage('We could not load your clinic profile. Please try again.')
+        }
+        return
+      }
+
+      if (!data) {
+        setMessage('No clinic profile is linked to this account yet.')
         return
       }
 
@@ -70,21 +80,22 @@ export default function ClinicAccountPage() {
     const dailyCapacity = Number(form.dailyCapacity)
     if (!clinic || !form.name.trim() || !form.address.trim() || !form.phone.trim() || !Number.isInteger(dailyCapacity) || dailyCapacity < 1) return
     setSaving(true)
-      const { data, error } = await supabase
+const { data, error } = await supabase
       .from('clinics')
       .update({ name: form.name.trim(), address: form.address.trim(), phone: form.phone.trim() || null, email: form.email.trim() || null, description: form.description.trim() || null, daily_capacity: dailyCapacity })
       .eq('id', clinic.id)
       .select('id, name, address, phone, email, description, is_verified, daily_capacity, permit_url')
       .single()
 
-    if (error || !data) {
-      setMessage('We could not save your clinic details. Please try again.')
-    } else {
-      setClinic(data)
-      setEditing(false)
-      setMessage('Clinic details saved.')
-    }
-    setSaving(false)
+      if (error) {
+        if (error.code === '42703') {
+          setMessage('The clinic profile is missing a required column. Run scripts/clinic-permits.sql in the Supabase SQL Editor, then reload this page.')
+        } else {
+          setMessage('We could not save your clinic details. Please try again.')
+        }
+        setSaving(false)
+        return
+      }
   }
 
   const uploadPermit = async (file: File) => {
@@ -276,25 +287,35 @@ export default function ClinicAccountPage() {
                      {permitUploading ? 'Removing...' : 'Remove permit'}
                    </Button>
                  </div>
-               ) : (
-                 <div className="mt-3">
-                   <label className="flex h-20 cursor-pointer items-center justify-center rounded-md border border-dashed border-emerald-200 bg-emerald-50/30 px-4 text-sm text-emerald-700 transition hover:bg-emerald-100">
-                     <input
-                       type="file"
-                       accept="image/jpeg,image/png,image/gif,application/pdf"
-                       className="sr-only"
-                       disabled={permitUploading}
-                       onChange={(e) => {
-                         const file = e.target.files?.[0]
-                         if (file) void uploadPermit(file)
-                         e.target.value = ''
-                       }}
-                     />
-                     <Upload className="mr-2 h-4 w-4" />
-                     {permitUploading ? 'Uploading...' : 'Choose a file to upload'}
-                   </label>
-                 </div>
-               )}
+) : (
+                  <div className="mt-3 space-y-3">
+                    <label className="flex h-20 cursor-pointer items-center justify-center rounded-md border border-dashed border-emerald-200 bg-emerald-50/30 px-4 text-sm text-emerald-700 transition hover:bg-emerald-100">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/gif,application/pdf"
+                        className="sr-only"
+                        disabled={permitUploading}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) setSelectedPermitFile(file)
+                          e.target.value = ''
+                        }}
+                      />
+                      <Upload className="mr-2 h-4 w-4" />
+                      {selectedPermitFile ? selectedPermitFile.name : 'Choose a file to upload'}
+                    </label>
+                    {selectedPermitFile && (
+                      <Button
+                        className="w-full"
+                        disabled={permitUploading}
+                        onClick={() => void uploadPermit(selectedPermitFile)}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        {permitUploading ? 'Uploading...' : 'Submit permit'}
+                      </Button>
+                    )}
+                  </div>
+                )}
 
                {permitMessage && (
                  <p className="mt-2 text-sm text-emerald-700">{permitMessage}</p>

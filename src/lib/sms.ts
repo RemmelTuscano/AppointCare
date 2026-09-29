@@ -44,38 +44,32 @@ export function generateSmsMessage({
 export async function sendSmsNotification(params: SMSParams): Promise<{ success: boolean; messageId?: string; simulated?: boolean; error?: string }> {
   const body = generateSmsMessage(params)
 
-  const accountSid = process.env.TWILIO_ACCOUNT_SID
-  const authToken = process.env.TWILIO_AUTH_TOKEN
-  const fromNumber = process.env.TWILIO_PHONE_NUMBER
+  const apiKey = process.env.TEXTBEE_API_KEY
 
-  if (accountSid && authToken && fromNumber && params.to) {
+  if (apiKey && params.to) {
     try {
-      const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
-      const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64')
-      
-      const form = new URLSearchParams()
-      form.append('From', fromNumber)
-      form.append('To', params.to)
-      form.append('Body', body)
-
-      const res = await fetch(endpoint, {
+      const res = await fetch('https://api.textbee.dev/api/v1/gateway/send-sms', {
         method: 'POST',
         headers: {
-          Authorization: `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
         },
-        body: form.toString(),
+        body: JSON.stringify({
+          recipients: [params.to],
+          message: body,
+        }),
       })
 
       const data = await res.json()
+
       if (!res.ok) {
-        console.warn('Twilio SMS delivery error:', data)
-        return { success: false, error: data.message || 'Twilio send failed', simulated: true }
+        console.warn('TextBee SMS delivery error:', data)
+        return { success: false, error: data.message || data.error || 'TextBee send failed', simulated: true }
       }
 
-      return { success: true, messageId: data.sid, simulated: false }
+      return { success: true, messageId: data.smsBatchId || `textbee_${Date.now()}`, simulated: false }
     } catch (err: any) {
-      console.warn('Twilio fetch exception:', err)
+      console.warn('TextBee fetch exception:', err)
       return { success: false, error: err.message, simulated: true }
     }
   }
