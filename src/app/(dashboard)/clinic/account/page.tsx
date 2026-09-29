@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ChangePasswordDialog } from '@/components/ui/change-password-dialog'
-import { BadgeCheck, Building2, KeyRound, Pencil } from 'lucide-react'
+import { BadgeCheck, Building2, ExternalLink, FileText, KeyRound, Pencil, Trash2, Upload } from 'lucide-react'
 
 type ClinicProfile = {
   id: string
@@ -19,6 +19,7 @@ type ClinicProfile = {
   description: string | null
   is_verified: boolean
   daily_capacity: number
+  permit_url: string | null
 }
 
 const emptyForm = { name: '', address: '', phone: '', email: '', description: '', dailyCapacity: '10' }
@@ -30,6 +31,8 @@ export default function ClinicAccountPage() {
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [permitUploading, setPermitUploading] = useState(false)
+  const [permitMessage, setPermitMessage] = useState<string | null>(null)
   const supabase = createClient()
 
   const loadClinic = useEffectEvent(async () => {
@@ -42,7 +45,7 @@ export default function ClinicAccountPage() {
 
       const { data, error } = await supabase
         .from('clinics')
-        .select('id, name, address, phone, email, description, is_verified, daily_capacity')
+        .select('id, name, address, phone, email, description, is_verified, daily_capacity, permit_url')
         .eq('user_id', user.id)
         .maybeSingle()
 
@@ -67,11 +70,11 @@ export default function ClinicAccountPage() {
     const dailyCapacity = Number(form.dailyCapacity)
     if (!clinic || !form.name.trim() || !form.address.trim() || !form.phone.trim() || !Number.isInteger(dailyCapacity) || dailyCapacity < 1) return
     setSaving(true)
-    const { data, error } = await supabase
+      const { data, error } = await supabase
       .from('clinics')
       .update({ name: form.name.trim(), address: form.address.trim(), phone: form.phone.trim() || null, email: form.email.trim() || null, description: form.description.trim() || null, daily_capacity: dailyCapacity })
       .eq('id', clinic.id)
-      .select('id, name, address, phone, email, description, is_verified, daily_capacity')
+      .select('id, name, address, phone, email, description, is_verified, daily_capacity, permit_url')
       .single()
 
     if (error || !data) {
@@ -83,6 +86,65 @@ export default function ClinicAccountPage() {
     }
     setSaving(false)
   }
+
+  const uploadPermit = async (file: File) => {
+    setPermitUploading(true)
+    setPermitMessage(null)
+
+    const formData = new FormData()
+    formData.append('permit', file)
+
+    try {
+      const response = await fetch('/api/clinics/permit', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to upload permit.')
+      }
+
+      setClinic((current) => (current ? { ...current, permit_url: data.path } : null))
+      setPermitMessage(data.permitUrl
+        ? `Permit uploaded successfully. Your clinic is now under review.`
+        : `Permit uploaded successfully.`)
+    } catch (error) {
+      setPermitMessage(error instanceof Error ? error.message : 'Failed to upload permit.')
+    } finally {
+      setPermitUploading(false)
+    }
+  }
+
+  const removePermit = async () => {
+    setPermitUploading(true)
+    setPermitMessage(null)
+
+    try {
+      const response = await fetch('/api/clinics/permit', { method: 'DELETE' })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to remove permit.')
+      }
+
+      setClinic((current) => (current ? { ...current, permit_url: null } : null))
+      setPermitMessage('Permit removed successfully.')
+    } catch (error) {
+      setPermitMessage(error instanceof Error ? error.message : 'Failed to remove permit.')
+    } finally {
+      setPermitUploading(false)
+    }
+  }
+
+  const getPermitPublicUrl = (path: string | null) => {
+    if (!path) return null
+    const { data } = supabase.storage.from('clinic_permits').getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  const permitPublicUrl = getPermitPublicUrl(clinic?.permit_url)
 
   if (loading) return <div className="py-12 text-center text-muted-foreground">Loading clinic profile...</div>
 
@@ -156,19 +218,89 @@ export default function ClinicAccountPage() {
             <CardTitle className="flex items-center gap-2 text-emerald-950"><BadgeCheck className="size-5 text-emerald-700" />Verification status</CardTitle>
             <CardDescription>Clinic verification information</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="mb-2 text-sm font-medium text-muted-foreground">Current status</p>
-              <p className={`text-lg font-medium ${clinic?.is_verified ? 'text-emerald-700' : 'text-amber-700'}`}>
-                {clinic?.is_verified ? 'Verified' : 'Pending verification'}
-              </p>
-              {!clinic?.is_verified && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Your clinic is awaiting verification from the administrator.
-                </p>
-              )}
-            </div>
-          </CardContent>
+           <CardContent className="space-y-4">
+             <div>
+               <p className="mb-2 text-sm font-medium text-muted-foreground">Current status</p>
+               <p className={`text-lg font-medium ${clinic?.is_verified ? 'text-emerald-700' : 'text-amber-700'}`}>
+                 {clinic?.is_verified ? 'Verified' : 'Pending verification'}
+               </p>
+               {!clinic?.is_verified && (
+                 <p className="mt-2 text-sm text-muted-foreground">
+                   Your clinic is awaiting verification from the administrator.
+                 </p>
+               )}
+             </div>
+
+             <div>
+               <p className="mb-2 text-sm font-medium text-muted-foreground">Verification permit</p>
+               <p className="text-sm text-muted-foreground">
+                 Upload a photo or scan of your clinic permit, license, or registration document.
+                 Accepted formats: JPG, PNG, GIF, PDF (max 5 MB).
+               </p>
+
+               {permitPublicUrl ? (
+                 <div className="mt-3 space-y-3">
+                   {clinic?.permit_url?.endsWith('.pdf') ? (
+                     <a
+                       href={permitPublicUrl}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="flex items-center gap-2 text-sm text-emerald-700 hover:text-emerald-900"
+                     >
+                       <FileText className="h-4 w-4" />
+                       View permit document
+                       <ExternalLink className="h-3 w-3" />
+                     </a>
+                    ) : (
+                      <a
+                        href={permitPublicUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={permitPublicUrl}
+                          alt="Clinic permit"
+                          className="max-h-48 w-full max-w-xs rounded-md border border-emerald-100 object-contain"
+                        />
+                     </a>
+                   )}
+
+                   <Button
+                     variant="outline"
+                     size="sm"
+                     disabled={permitUploading}
+                     onClick={removePermit}
+                   >
+                     <Trash2 className="mr-2 h-4 w-4" />
+                     {permitUploading ? 'Removing...' : 'Remove permit'}
+                   </Button>
+                 </div>
+               ) : (
+                 <div className="mt-3">
+                   <label className="flex h-20 cursor-pointer items-center justify-center rounded-md border border-dashed border-emerald-200 bg-emerald-50/30 px-4 text-sm text-emerald-700 transition hover:bg-emerald-100">
+                     <input
+                       type="file"
+                       accept="image/jpeg,image/png,image/gif,application/pdf"
+                       className="sr-only"
+                       disabled={permitUploading}
+                       onChange={(e) => {
+                         const file = e.target.files?.[0]
+                         if (file) void uploadPermit(file)
+                         e.target.value = ''
+                       }}
+                     />
+                     <Upload className="mr-2 h-4 w-4" />
+                     {permitUploading ? 'Uploading...' : 'Choose a file to upload'}
+                   </label>
+                 </div>
+               )}
+
+               {permitMessage && (
+                 <p className="mt-2 text-sm text-emerald-700">{permitMessage}</p>
+               )}
+             </div>
+           </CardContent>
         </Card>
 
         {/* Security Settings Card */}

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, BadgeCheck, Building2, CalendarDays, Check, Clock3, Mail, MapPin, Phone, UsersRound } from 'lucide-react'
+import { ArrowLeft, BadgeCheck, Building2, CalendarDays, Check, Clock3, ExternalLink, FileText, Mail, MapPin, Phone, UsersRound } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
 
@@ -12,8 +12,12 @@ export default async function AdminClinicDetailsPage({ params }: { params: Promi
   const admin = createAdminClient()
   if (!admin) notFound()
 
-  const { data: clinic } = await admin.from('clinics').select('id, user_id, name, address, phone, email, description, is_verified, created_at').eq('id', id).single()
+  const { data: clinic } = await admin.from('clinics').select('id, user_id, name, address, phone, email, description, is_verified, created_at, permit_url').eq('id', id).single()
   if (!clinic) notFound()
+
+  const permitPublicUrl = clinic.permit_url
+    ? admin.storage.from('clinic_permits').getPublicUrl(clinic.permit_url).data?.publicUrl
+    : null
 
   const [{ data: owner }, { data: doctors }, { count: appointmentCount }] = await Promise.all([
     admin.from('profiles').select('full_name, email, phone, location, created_at').eq('id', clinic.user_id).single(),
@@ -32,6 +36,47 @@ export default async function AdminClinicDetailsPage({ params }: { params: Promi
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="space-y-6">
           <section className="border border-emerald-100 bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 font-semibold text-emerald-950"><Building2 className="h-5 w-5 text-emerald-700" />Registration details</h2><div className="mt-5 grid gap-5 sm:grid-cols-2"><Detail label="Clinic name" value={clinic.name} /><Detail label="Address" value={clinic.address} /><Detail label="Email" value={clinic.email || 'Not provided'} icon={<Mail className="h-4 w-4" />} /><Detail label="Phone" value={clinic.phone || 'Not provided'} icon={<Phone className="h-4 w-4" />} /><Detail label="Registered" value={formatDate(clinic.created_at)} icon={<CalendarDays className="h-4 w-4" />} /><Detail label="Daily capacity" value="Not configured" /></div><div className="mt-5 border-t border-emerald-50 pt-5"><p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Clinic description</p><p className="mt-2 leading-7 text-gray-700">{clinic.description || 'No description provided by the clinic.'}</p></div></section>
+
+          <section className="border border-emerald-100 bg-white p-5 shadow-sm">
+            <h2 className="flex items-center gap-2 font-semibold text-emerald-950">
+              <FileText className="h-5 w-5 text-emerald-700" />
+              Verification permit
+            </h2>
+            <div className="mt-5">
+              {permitPublicUrl ? (
+                <div className="space-y-3">
+                  {clinic.permit_url?.endsWith('.pdf') ? (
+                    <a
+                      href={permitPublicUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-emerald-700 hover:text-emerald-900"
+                    >
+                      <FileText className="h-4 w-4" />
+                      View permit document
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : (
+                    <a href={permitPublicUrl} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={permitPublicUrl}
+                        alt="Clinic permit"
+                        className="max-h-64 w-full max-w-md rounded-md border border-emerald-100 object-contain"
+                      />
+                    </a>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    File path: {clinic.permit_url}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No permit document has been uploaded for this clinic. Ask the clinic to upload a verification permit from their account settings.
+                </p>
+              )}
+            </div>
+          </section>
           <section className="border border-emerald-100 bg-white p-5 shadow-sm"><h2 className="flex items-center gap-2 font-semibold text-emerald-950"><UsersRound className="h-5 w-5 text-emerald-700" />Registered care team <span className="text-sm font-normal text-gray-500">({doctors?.length || 0})</span></h2>{doctors?.length ? <div className="mt-4 divide-y divide-emerald-50">{doctors.map((doctor) => <div key={doctor.id} className="flex items-center justify-between gap-4 py-3"><div><p className="font-semibold text-emerald-950">{doctor.name}</p><p className="text-sm text-gray-500">{doctor.specialization || 'Specialization not provided'}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${doctor.is_available ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'}`}>{doctor.is_available ? 'Available' : 'Unavailable'}</span></div>)}</div> : <p className="mt-4 text-sm text-gray-500">No doctors have been registered yet.</p>}</section>
         </div>
         <aside className="space-y-6"><section className="border border-emerald-100 bg-[#174c40] p-5 text-white shadow-sm"><h2 className="font-semibold">Registration owner</h2><div className="mt-5 space-y-4 text-sm"><Detail label="Name" value={owner?.full_name || 'Not provided'} dark /><Detail label="Email" value={owner?.email || clinic.email || 'Not provided'} dark /><Detail label="Phone" value={owner?.phone || clinic.phone || 'Not provided'} dark /><Detail label="Location" value={owner?.location || 'Not provided'} dark /></div></section><section className="border border-emerald-100 bg-white p-5 shadow-sm"><h2 className="font-semibold text-emerald-950">Platform activity</h2><div className="mt-5 space-y-4"><div className="flex items-center justify-between border-b border-emerald-50 pb-3"><span className="flex items-center gap-2 text-sm text-gray-500"><CalendarDays className="h-4 w-4" />Appointments</span><strong className="text-emerald-950">{appointmentCount || 0}</strong></div><div className="flex items-center justify-between"><span className="flex items-center gap-2 text-sm text-gray-500"><Check className="h-4 w-4" />Verification</span><strong className={clinic.is_verified ? 'text-emerald-700' : 'text-amber-700'}>{clinic.is_verified ? 'Approved' : 'Pending'}</strong></div></div></section></aside>
