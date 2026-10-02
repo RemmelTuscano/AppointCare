@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ArrowLeft, CheckCircle2, MapPin, Stethoscope, UserCheck, UserRound, UsersRound } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, CircleAlert, MapPin, Stethoscope, UserCheck, UserRound, UsersRound } from 'lucide-react'
 
 type ClinicDoctor = {
   id: string
@@ -24,6 +24,13 @@ type Clinic = {
   doctors: ClinicDoctor[] | null
 }
 
+type BookingResult = {
+  type: 'success' | 'error'
+  title: string
+  message: string
+  scheduledAt?: string
+}
+
 export default function PatientClinics() {
   const [clinics, setClinics] = useState<Clinic[]>([])
   const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null)
@@ -34,7 +41,9 @@ export default function PatientClinics() {
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
-  const [confirmedAppointment, setConfirmedAppointment] = useState<{ clinicName: string; doctorName?: string; scheduledAt: string } | null>(null)
+  const [isBookingConfirmationOpen, setIsBookingConfirmationOpen] = useState(false)
+  const [isBooking, setIsBooking] = useState(false)
+  const [bookingResult, setBookingResult] = useState<BookingResult | null>(null)
   const supabase = createClient()
   const router = useRouter()
 
@@ -68,7 +77,16 @@ export default function PatientClinics() {
 
   const bookAppointment = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !selectedClinic || !selectedDate || !selectedDoctor) return
+    if (!user || !selectedClinic || !selectedDate || !selectedDoctor) {
+      setBookingResult({
+        type: 'error',
+        title: 'Appointment request not sent',
+        message: !user ? 'Your session has expired. Please sign in again.' : 'Choose a clinic, doctor, and date before requesting an appointment.',
+      })
+      return
+    }
+    setIsBooking(true)
+    setIsBookingConfirmationOpen(false)
 
     const scheduledAt = new Date(selectedDate)
     scheduledAt.setHours(9, 0, 0, 0) // Default to 9 AM
@@ -81,27 +99,44 @@ export default function PatientClinics() {
 
     const chosenDoctor = doctors.find((d) => d.id === selectedDoctor)
 
-    const bookingResponse = await fetch('/api/appointments/book', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        clinicId: selectedClinic.id,
-        doctorId: selectedDoctor,
-        scheduledAt: scheduledAt.toISOString(),
-        notes,
-      }),
-    })
-    const bookingPayload = await bookingResponse.json()
+    let bookingResponse: Response
+    let bookingPayload: { error?: string; code?: string; appointment?: { id: string; scheduled_at: string } }
+    try {
+      bookingResponse = await fetch('/api/appointments/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clinicId: selectedClinic.id,
+          doctorId: selectedDoctor,
+          scheduledAt: scheduledAt.toISOString(),
+          notes,
+        }),
+      })
+      bookingPayload = await bookingResponse.json()
+    } catch (error) {
+      setBookingResult({
+        type: 'error',
+        title: 'Appointment request not sent',
+        message: error instanceof Error ? error.message : 'We could not request this appointment. Please try again.',
+      })
+      setIsBooking(false)
+      return
+    }
 
     if (!bookingResponse.ok || !bookingPayload.appointment) {
-      setMessage(bookingPayload.error || 'We could not request this appointment. Please try again.')
-      if (bookingResponse.status === 409 && ['CLINIC_UNAVAILABLE', 'DOCTOR_UNAVAILABLE'].includes(bookingPayload.code)) {
+      setBookingResult({
+        type: 'error',
+        title: 'Appointment request not sent',
+        message: bookingPayload.error || 'We could not request this appointment. Please try again.',
+      })
+      if (bookingResponse.status === 409 && ['CLINIC_UNAVAILABLE', 'DOCTOR_UNAVAILABLE'].includes(bookingPayload.code || '')) {
         setSelectedClinic(null)
         setDoctors([])
         setSelectedDoctor('')
         setSelectedDate(undefined)
         setBookingStarted(false)
       }
+      setIsBooking(false)
       return
     }
 
@@ -116,16 +151,30 @@ export default function PatientClinics() {
       metadata: { clinic: selectedClinic.name, doctor: chosenDoctor?.name, scheduledAt: apt.scheduled_at },
     })
 
-    await fetch('/api/notifications/dispatch', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'created', appointmentId: apt.id, patientEmail: user.email, patientPhone: profile?.phone, patientName: profile?.full_name, patientUserId: user.id, clinicUserId: selectedClinic.user_id, clinicName: selectedClinic.name, clinicAddress: selectedClinic.address, doctorName: chosenDoctor?.name, doctorSpecialization: chosenDoctor?.specialization, scheduledAt: apt.scheduled_at, notes }),
-    })
+    let notificationFailed = false
+    try {
+      const notificationResponse = await fetch('/api/notifications/dispatch', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'created', appointmentId: apt.id, patientEmail: user.email, patientPhone: profile?.phone, patientName: profile?.full_name, patientUserId: user.id, clinicUserId: selectedClinic.user_id, clinicName: selectedClinic.name, clinicAddress: selectedClinic.address, doctorName: chosenDoctor?.name, doctorSpecialization: chosenDoctor?.specialization, scheduledAt: apt.scheduled_at, notes }),
+      })
+      notificationFailed = !notificationResponse.ok
+    } catch {
+      notificationFailed = true
+    }
 
     setSelectedClinic(null)
     setSelectedDate(undefined)
     setSelectedDoctor('')
     setNotes('')
-    setConfirmedAppointment({ clinicName: selectedClinic.name, doctorName: chosenDoctor?.name, scheduledAt: apt.scheduled_at })
+    setBookingResult({
+      type: 'success',
+      title: 'Appointment requested',
+      message: notificationFailed
+        ? `Your request was saved for ${selectedClinic.name}, but notification delivery could not be confirmed. The clinic will review your appointment shortly.`
+        : `Your request has been sent to ${selectedClinic.name}${chosenDoctor?.name ? ` with ${chosenDoctor.name}` : ''}. The clinic will confirm your appointment shortly.`,
+      scheduledAt: apt.scheduled_at,
+    })
+    setIsBooking(false)
   }
 
   return (
@@ -274,8 +323,8 @@ export default function PatientClinics() {
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Button variant="outline" className="sm:flex-1" onClick={() => setBookingStarted(false)}>Back to doctor selection</Button>
-                  <Button className="sm:flex-1" disabled={!selectedDate} onClick={bookAppointment}>
-                    <CheckCircle2 className="mr-2 size-4" /> Request appointment
+                  <Button className="sm:flex-1" disabled={!selectedDate} onClick={() => setIsBookingConfirmationOpen(true)}>
+                    <CheckCircle2 className="mr-2 size-4" /> Review request
                   </Button>
                 </div>
               </CardContent>
@@ -284,26 +333,71 @@ export default function PatientClinics() {
         </section>
       )}
 
-      <Dialog open={!!confirmedAppointment} onOpenChange={(open) => { if (!open) { setConfirmedAppointment(null); router.push('/patient/appointments') } }}>
+      <Dialog open={isBookingConfirmationOpen} onOpenChange={setIsBookingConfirmationOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-950">
-              <CheckCircle2 className="size-5 text-emerald-600" /> Appointment requested
+            <DialogTitle>Confirm appointment request</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2 text-sm">
+            <p className="text-muted-foreground">Please review the details before sending your request.</p>
+            <dl className="grid gap-3 rounded-md border border-border/70 bg-muted/40 p-4 sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-semibold uppercase text-muted-foreground">Clinic</dt>
+                <dd className="mt-1 font-medium text-foreground">{selectedClinic?.name}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase text-muted-foreground">Doctor</dt>
+                <dd className="mt-1 font-medium text-foreground">{doctors.find((doctor) => doctor.id === selectedDoctor)?.name || 'To be assigned'}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase text-muted-foreground">Date</dt>
+                <dd className="mt-1 font-medium text-foreground">{selectedDate?.toLocaleDateString()}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase text-muted-foreground">Time</dt>
+                <dd className="mt-1 font-medium text-foreground">9:00 AM</dd>
+              </div>
+              {notes.trim() && (
+                <div className="sm:col-span-2">
+                  <dt className="text-xs font-semibold uppercase text-muted-foreground">Notes</dt>
+                  <dd className="mt-1 whitespace-pre-wrap text-foreground">{notes}</dd>
+                </div>
+              )}
+            </dl>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" disabled={isBooking} onClick={() => setIsBookingConfirmationOpen(false)}>Back</Button>
+              <Button disabled={isBooking} onClick={() => void bookAppointment()}>
+                {isBooking ? 'Sending request...' : 'Confirm request'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bookingResult !== null} onOpenChange={(open) => { if (!open) setBookingResult(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              {bookingResult?.type === 'success'
+                ? <CheckCircle2 className="size-5 text-emerald-600" />
+                : <CircleAlert className="size-5 text-destructive" />}
+              {bookingResult?.title}
             </DialogTitle>
           </DialogHeader>
-          {confirmedAppointment && (
-            <div className="space-y-3 pt-2 text-sm">
-              <p className="text-muted-foreground">
-                Your request has been sent to <span className="font-medium text-emerald-950">{confirmedAppointment.clinicName}</span>
-                {confirmedAppointment.doctorName ? <> with <span className="font-medium text-emerald-950">{confirmedAppointment.doctorName}</span></> : null}.
-                The clinic will confirm your appointment shortly.
-              </p>
-              <p className="text-muted-foreground">
-                Requested date: <span className="font-medium text-emerald-950">{new Date(confirmedAppointment.scheduledAt).toLocaleDateString()}</span>
-              </p>
-              <Button className="w-full" onClick={() => { setConfirmedAppointment(null); router.push('/patient/appointments') }}>
-                View my appointments
-              </Button>
+          {bookingResult && (
+            <div className="space-y-4 pt-2 text-sm">
+              <p className="text-muted-foreground">{bookingResult.message}</p>
+              {bookingResult.scheduledAt && (
+                <p className="text-muted-foreground">
+                  Requested date: <span className="font-medium text-foreground">{new Date(bookingResult.scheduledAt).toLocaleDateString()}</span>
+                </p>
+              )}
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button variant="outline" onClick={() => setBookingResult(null)}>Close</Button>
+                {bookingResult.type === 'success' && (
+                  <Button onClick={() => { setBookingResult(null); router.push('/patient/appointments') }}>View my appointments</Button>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>

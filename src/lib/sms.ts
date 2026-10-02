@@ -45,8 +45,13 @@ export async function sendSmsNotification(params: SMSParams): Promise<{ success:
   const body = generateSmsMessage(params)
 
   const apiKey = process.env.TEXTBEE_API_KEY
+  const hasApiKey = Boolean(apiKey && !apiKey.startsWith('your_') && !apiKey.includes('placeholder'))
 
-  if (apiKey && params.to) {
+  if (!params.to.trim()) {
+    return { success: false, error: 'Recipient phone number is missing.' }
+  }
+
+  if (hasApiKey && apiKey) {
     try {
       const res = await fetch('https://api.textbee.dev/api/v1/gateway/send-sms', {
         method: 'POST',
@@ -64,14 +69,18 @@ export async function sendSmsNotification(params: SMSParams): Promise<{ success:
 
       if (!res.ok) {
         console.warn('TextBee SMS delivery error:', data)
-        return { success: false, error: data.message || data.error || 'TextBee send failed', simulated: true }
+        return { success: false, error: data.message || data.error || 'TextBee send failed', simulated: false }
       }
 
       return { success: true, messageId: data.smsBatchId || `textbee_${Date.now()}`, simulated: false }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('TextBee fetch exception:', err)
-      return { success: false, error: err.message, simulated: true }
+      return { success: false, error: err instanceof Error ? err.message : 'TextBee request failed', simulated: false }
     }
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return { success: false, error: 'TEXTBEE_API_KEY is not configured.' }
   }
 
   // Graceful simulation / dev mode logging

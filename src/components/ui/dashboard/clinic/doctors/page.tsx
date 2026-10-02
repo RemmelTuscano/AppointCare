@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Building2, Calendar, CheckCircle, ChevronDown, Clock, MapPin, Plus, UserCheck, UserRound, UserX, X, type LucideIcon } from 'lucide-react'
+import { Building2, Calendar, CheckCircle, ChevronDown, Clock, MapPin, Pencil, Plus, Trash2, UserCheck, UserRound, UserX, X, type LucideIcon } from 'lucide-react'
 import type { Doctor } from '@/types/database'
 
 type RegisteredClinic = {
@@ -43,7 +43,10 @@ export default function ClinicDoctors() {
   const [newDoctor, setNewDoctor] = useState({ name: '', specialization: '' })
   const [specializationOpen, setSpecializationOpen] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [editingDoctorId, setEditingDoctorId] = useState<string | null>(null)
+  const [doctorToDelete, setDoctorToDelete] = useState<Doctor | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [updatingDoctorId, setUpdatingDoctorId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
@@ -109,28 +112,84 @@ export default function ClinicDoctors() {
     return () => window.clearTimeout(initialLoad)
   }, [supabase])
 
-  const addDoctor = async () => {
+  const saveDoctor = async () => {
     if (!clinic || !newDoctor.name.trim()) return
     setIsSaving(true)
-    const { data, error } = await supabase
-      .from('doctors')
-      .insert({
-        clinic_id: clinic.id,
-        name: newDoctor.name,
-        specialization: newDoctor.specialization,
-      })
-      .select()
-      .single()
+
+    const request = editingDoctorId
+      ? supabase
+          .from('doctors')
+          .update({ name: newDoctor.name.trim(), specialization: newDoctor.specialization })
+          .eq('id', editingDoctorId)
+          .eq('clinic_id', clinic.id)
+      : supabase
+          .from('doctors')
+          .insert({ clinic_id: clinic.id, name: newDoctor.name.trim(), specialization: newDoctor.specialization })
+
+    const { data, error } = await request.select().single()
 
     if (error || !data) {
-      setMessage('We could not add this doctor. Please try again.')
+      setMessage(`We could not ${editingDoctorId ? 'update' : 'add'} this doctor. Please try again.`)
     } else {
-      setDoctors((current) => [data, ...current])
+      setDoctors((current) => editingDoctorId
+        ? current.map((doctor) => doctor.id === data.id ? data : doctor)
+        : [data, ...current])
+      setMessage(editingDoctorId ? 'Doctor details updated.' : null)
       setNewDoctor({ name: '', specialization: '' })
+      setEditingDoctorId(null)
       setSpecializationOpen(false)
       setIsDialogOpen(false)
     }
     setIsSaving(false)
+  }
+
+  const editDoctor = (doctor: Doctor) => {
+    setEditingDoctorId(doctor.id)
+    setNewDoctor({ name: doctor.name, specialization: doctor.specialization || '' })
+    setSpecializationOpen(false)
+    setMessage(null)
+    setIsDialogOpen(true)
+  }
+
+  const deleteDoctor = async () => {
+    if (!clinic || !doctorToDelete) return
+    setIsDeleting(true)
+
+    const { count, error: appointmentsError } = await supabase
+      .from('appointments')
+      .select('id', { count: 'exact', head: true })
+      .eq('doctor_id', doctorToDelete.id)
+      .in('status', ['pending', 'confirmed'])
+
+    if (appointmentsError || count === null) {
+      setMessage('We could not check this doctor’s active appointments. Please try again.')
+      setDoctorToDelete(null)
+      setIsDeleting(false)
+      return
+    }
+
+    if (count) {
+      setMessage(`Dr. ${doctorToDelete.name} has ${count} pending or confirmed appointment${count === 1 ? '' : 's'}. Reassign or reschedule them before deleting this doctor.`)
+      setDoctorToDelete(null)
+      setIsDeleting(false)
+      return
+    }
+
+    const { error } = await supabase
+      .from('doctors')
+      .delete()
+      .eq('id', doctorToDelete.id)
+      .eq('clinic_id', clinic.id)
+
+    if (error) {
+      setMessage('We could not delete this doctor. Please try again.')
+    } else {
+      setDoctors((current) => current.filter((doctor) => doctor.id !== doctorToDelete.id))
+      setMessage(`Dr. ${doctorToDelete.name} was removed from your clinic.`)
+    }
+
+    setDoctorToDelete(null)
+    setIsDeleting(false)
   }
 
   const toggleAvailability = async (id: string, current: boolean) => {
@@ -212,13 +271,24 @@ export default function ClinicDoctors() {
     <div className="space-y-7">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Your care team</p>
-          <h1 className="mt-1 text-3xl font-bold text-emerald-950">Welcome back</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Keep your doctors and booking availability up to date.</p>
+          <p className="text-sm font-medium text-emerald-700">Clinic workspace</p>
+          <h1 className="mt-1 text-3xl font-bold text-emerald-950">Clinic overview</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Manage your clinic profile, care team, and booking availability.</p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open)
+          if (!open) {
+            setEditingDoctorId(null)
+            setNewDoctor({ name: '', specialization: '' })
+            setSpecializationOpen(false)
+          }
+        }}>
+          <DialogTrigger onClick={() => {
+            setEditingDoctorId(null)
+            setNewDoctor({ name: '', specialization: '' })
+            setMessage(null)
+          }}>
             <Button>
               <Plus className="mr-2 size-4" /> Add doctor
             </Button>
@@ -226,14 +296,15 @@ export default function ClinicDoctors() {
           <DialogContent>
             <div className="flex items-start justify-between gap-4">
               <DialogHeader>
-                <DialogTitle>Add New Doctor</DialogTitle>
+                <DialogTitle>{editingDoctorId ? 'Edit Doctor' : 'Add New Doctor'}</DialogTitle>
               </DialogHeader>
               <button
                 type="button"
-                aria-label="Cancel adding doctor"
+                aria-label={editingDoctorId ? 'Cancel editing doctor' : 'Cancel adding doctor'}
                 title="Cancel"
                 onClick={() => {
                   setNewDoctor({ name: '', specialization: '' })
+                  setEditingDoctorId(null)
                   setSpecializationOpen(false)
                   setIsDialogOpen(false)
                 }}
@@ -288,8 +359,26 @@ export default function ClinicDoctors() {
                   )}
                 </div>
               </div>
-              <Button disabled={isSaving || !newDoctor.name.trim() || !newDoctor.specialization} onClick={addDoctor} className="w-full">
-                {isSaving ? 'Adding doctor...' : 'Add doctor'}
+              <Button disabled={isSaving || !newDoctor.name.trim() || !newDoctor.specialization} onClick={saveDoctor} className="w-full">
+                {isSaving ? (editingDoctorId ? 'Saving changes...' : 'Adding doctor...') : (editingDoctorId ? 'Save changes' : 'Add doctor')}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={doctorToDelete !== null} onOpenChange={(open) => {
+          if (!open && !isDeleting) setDoctorToDelete(null)
+        }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete doctor?</DialogTitle>
+            </DialogHeader>
+            <p className="py-4 text-sm text-muted-foreground">
+              Remove Dr. {doctorToDelete?.name} from your clinic? This cannot be undone. Doctors with pending or confirmed appointments cannot be deleted.
+            </p>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" disabled={isDeleting} onClick={() => setDoctorToDelete(null)}>Cancel</Button>
+              <Button variant="destructive" disabled={isDeleting} onClick={() => void deleteDoctor()}>
+                <Trash2 className="mr-2 size-4" />{isDeleting ? 'Deleting...' : 'Delete doctor'}
               </Button>
             </div>
           </DialogContent>
@@ -333,14 +422,14 @@ export default function ClinicDoctors() {
 
       <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle className="text-emerald-950">Your doctors</CardTitle>
+          <CardTitle className="text-emerald-950">Doctors at your clinic</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {doctors.map((doctor) => (
               <Card key={doctor.id} className="transition-transform duration-200 hover:-translate-y-0.5">
                 <CardContent className="p-6">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-2">
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                     <UserRound className="size-5" />
@@ -350,11 +439,19 @@ export default function ClinicDoctors() {
                     <p className="truncate text-sm text-muted-foreground">{doctor.specialization || 'General practice'}</p>
                   </div>
                 </div>
-                <div className={cn(
-                  "rounded-full p-2",
-                  doctor.is_available ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"
-                )}>
-                  {doctor.is_available ? <UserCheck className="w-5 h-5" /> : <UserX className="w-5 h-5" />}
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button type="button" variant="ghost" size="icon-sm" title={`Edit ${doctor.name}`} aria-label={`Edit ${doctor.name}`} onClick={() => editDoctor(doctor)}>
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon-sm" title={`Delete ${doctor.name}`} aria-label={`Delete ${doctor.name}`} className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setDoctorToDelete(doctor)}>
+                    <Trash2 className="size-4" />
+                  </Button>
+                  <div className={cn(
+                    "rounded-full p-2",
+                    doctor.is_available ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"
+                  )}>
+                    {doctor.is_available ? <UserCheck className="w-5 h-5" /> : <UserX className="w-5 h-5" />}
+                  </div>
                 </div>
               </div>
               

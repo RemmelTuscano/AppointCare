@@ -18,13 +18,11 @@ import {
   Clock,
   Copy,
   Hash,
-  Info,
   Mail,
   MessageSquare,
   Search,
   Stethoscope,
   TriangleAlert,
-  UserRound,
   XCircle,
 } from 'lucide-react'
 import { formatScheduleId } from '@/lib/email-templates'
@@ -73,7 +71,8 @@ export default function ClinicAppointments() {
   const [clinicDoctors, setClinicDoctors] = useState<AvailableDoctor[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
+  const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ appointment: ClinicAppointment; status: 'confirmed' | 'cancelled' } | null>(null)
+  const [actionResult, setActionResult] = useState<{ type: 'success' | 'warning' | 'error'; title: string; message: string } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
@@ -155,7 +154,6 @@ export default function ClinicAppointments() {
 
   const updateStatus = async (id: string, status: 'confirmed' | 'cancelled') => {
     setUpdatingId(id)
-    const aptToUpdate = appointments.find((a) => a.id === id)
     const scheduleId = formatScheduleId(id)
 
     const { data: apt, error } = await supabase
@@ -180,37 +178,68 @@ export default function ClinicAppointments() {
         appointment.id === id ? { ...appointment, status } : appointment
       ))))
 
-      // Trigger automated multi-channel notifications (Email + SMS + In-app)
-      await fetch('/api/notifications/dispatch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: status === 'confirmed' ? 'confirmed' : 'cancelled',
-          appointmentId: id,
-          patientEmail: apt.patient?.email,
-          patientPhone: apt.patient?.phone,
-          patientName: apt.patient?.full_name,
-          patientUserId: apt.patient_id,
-          clinicName: apt.clinic?.name,
-          clinicAddress: apt.clinic?.address,
-          doctorName: apt.doctor?.name,
-          doctorSpecialization: apt.doctor?.specialization,
-          scheduledAt: apt.scheduled_at,
-          reason: status === 'cancelled' ? 'Clinic could not accommodate this booking request.' : undefined,
-        }),
-      })
+      const statusLabel = status === 'confirmed' ? 'accepted' : 'declined'
+      try {
+        const response = await fetch('/api/notifications/dispatch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: status === 'confirmed' ? 'confirmed' : 'cancelled',
+            appointmentId: id,
+            patientEmail: apt.patient?.email,
+            patientPhone: apt.patient?.phone,
+            patientName: apt.patient?.full_name,
+            patientUserId: apt.patient_id,
+            clinicName: apt.clinic?.name,
+            clinicAddress: apt.clinic?.address,
+            doctorName: apt.doctor?.name,
+            doctorSpecialization: apt.doctor?.specialization,
+            scheduledAt: apt.scheduled_at,
+            reason: status === 'cancelled' ? 'Clinic could not accommodate this booking request.' : undefined,
+          }),
+        })
+        const result = await response.json()
+        if (!response.ok || !result.success) throw new Error(result.error || 'Notification dispatch failed.')
 
-      setMessage({
-        type: 'success',
-        text: `Appointment [${scheduleId}] ${status}. Automated Email and SMS confirmation with Schedule ID have been sent to the patient.`,
-      })
+        const describeChannel = (name: string, channel?: { sent?: boolean; simulated?: boolean; skipped?: boolean; error?: string }) => {
+          if (!channel) return `${name}: no delivery result returned.`
+          if (channel.skipped) return `${name}: skipped (${channel.error || 'not enabled'}).`
+          if (channel.simulated) return `${name}: simulated locally; not delivered.`
+          if (channel.sent) return `${name}: accepted by provider; recipient delivery is not confirmed.`
+          return `${name}: failed (${channel.error || 'provider did not accept the message'}).`
+        }
+        const channels = [result.email, result.sms]
+        const allAccepted = channels.every((channel) => channel?.sent && !channel.simulated && !channel.skipped)
+
+        setActionResult({
+          type: allAccepted ? 'success' : 'warning',
+          title: allAccepted
+            ? `Appointment ${statusLabel}`
+            : `Appointment ${statusLabel}; notification delivery needs attention`,
+          message: `Appointment [${scheduleId}] ${statusLabel}. ${describeChannel('Email', result.email)} ${describeChannel('SMS', result.sms)}`,
+        })
+      } catch (notificationError) {
+        setActionResult({
+          type: 'warning',
+          title: `Appointment ${statusLabel}; notifications could not be confirmed`,
+          message: `Appointment [${scheduleId}] ${statusLabel}, but notification dispatch failed: ${notificationError instanceof Error ? notificationError.message : 'Please check provider configuration and logs.'}`,
+        })
+      }
     } else {
-      setMessage({
+      setActionResult({
         type: 'error',
-        text: 'We could not update this appointment. Please try again.',
+        title: 'Appointment not updated',
+        message: 'We could not update this appointment. Please try again.',
       })
     }
     setUpdatingId(null)
+  }
+
+  const confirmPendingStatusUpdate = () => {
+    if (!pendingStatusUpdate) return
+    const { appointment, status } = pendingStatusUpdate
+    setPendingStatusUpdate(null)
+    void updateStatus(appointment.id, status)
   }
 
   const openRescheduleModal = (apt: ClinicAppointment) => {
@@ -223,11 +252,12 @@ export default function ClinicAppointments() {
   const handleRescheduleSubmit = async () => {
     if (!reschedulingApt || !rescheduleDate) return
     setIsSubmittingReschedule(true)
-    setMessage(null)
+    setActionResult(null)
 
     try {
       const [time, modifier] = selectedTimeSlot.split(' ')
-      let [hours, minutes] = time.split(':').map(Number)
+      let hours = Number(time.split(':')[0])
+      const minutes = Number(time.split(':')[1])
       if (modifier === 'PM' && hours < 12) hours += 12
       if (modifier === 'AM' && hours === 12) hours = 0
 
@@ -252,17 +282,25 @@ export default function ClinicAppointments() {
         throw new Error(data.error || 'Failed to reschedule appointment')
       }
 
-      setMessage({
+      setActionResult({
         type: 'success',
-        text: `Appointment [${formatScheduleId(reschedulingApt.id)}] rescheduled successfully! Automated Email and SMS have been dispatched to the patient.`,
+        title: 'Appointment rescheduled',
+        message: `Appointment [${formatScheduleId(reschedulingApt.id)}] rescheduled successfully. Automated Email and SMS have been dispatched to the patient.`,
       })
 
       setReschedulingApt(null)
-      fetchAppointments()
+      if (clinicId) {
+        const refreshedAppointments = await fetch(`/api/clinic/appointments?clinicId=${clinicId}`)
+        if (refreshedAppointments.ok) {
+          const payload = await refreshedAppointments.json()
+          setAppointments(sortAppointments(payload.appointments || []))
+        }
+      }
     } catch (err) {
-      setMessage({
+      setActionResult({
         type: 'error',
-        text: err instanceof Error ? err.message : 'Could not complete rescheduling.',
+        title: 'Appointment not rescheduled',
+        message: err instanceof Error ? err.message : 'Could not complete rescheduling.',
       })
     } finally {
       setIsSubmittingReschedule(false)
@@ -302,21 +340,6 @@ export default function ClinicAppointments() {
           />
         </div>
       </header>
-
-      {message && (
-        <div
-          className={`flex items-start gap-3 rounded-lg border p-4 text-sm ${
-            message.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-              : message.type === 'error'
-              ? 'border-red-200 bg-red-50 text-red-900'
-              : 'border-blue-200 bg-blue-50 text-blue-900'
-          }`}
-        >
-          <Info className="size-5 shrink-0" />
-          <div className="flex-1 font-medium">{message.text}</div>
-        </div>
-      )}
 
       <div className="grid gap-4">
         {filteredAppointments.map((apt) => {
@@ -443,7 +466,7 @@ export default function ClinicAppointments() {
                         <Button 
                           size="sm" 
                           disabled={updatingId === apt.id}
-                          onClick={() => updateStatus(apt.id, 'confirmed')}
+                          onClick={() => setPendingStatusUpdate({ appointment: apt, status: 'confirmed' })}
                           className="bg-emerald-700 hover:bg-emerald-800"
                         >
                           <CheckCircle className="mr-1 size-4" /> {updatingId === apt.id ? 'Updating' : 'Accept'}
@@ -452,7 +475,7 @@ export default function ClinicAppointments() {
                           size="sm" 
                           variant="destructive"
                           disabled={updatingId === apt.id}
-                          onClick={() => updateStatus(apt.id, 'cancelled')}
+                          onClick={() => setPendingStatusUpdate({ appointment: apt, status: 'cancelled' })}
                         >
                           <XCircle className="mr-1 size-4" /> Decline
                         </Button>
@@ -477,6 +500,51 @@ export default function ClinicAppointments() {
           </Card>
         )}
       </div>
+
+      <Dialog open={pendingStatusUpdate !== null} onOpenChange={(open) => { if (!open) setPendingStatusUpdate(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {pendingStatusUpdate?.status === 'confirmed' ? 'Accept appointment request?' : 'Decline appointment request?'}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="py-4 text-sm text-muted-foreground">
+            {pendingStatusUpdate?.status === 'confirmed' ? 'Confirm' : 'Decline'} the request from{' '}
+            <span className="font-semibold text-foreground">{pendingStatusUpdate?.appointment.patient?.full_name || 'this patient'}</span>
+            {' '}({formatScheduleId(pendingStatusUpdate?.appointment.id || '')})?
+            {pendingStatusUpdate?.status === 'cancelled' ? ' The patient will be notified that the request was declined.' : ' The patient will be notified that the appointment is confirmed.'}
+          </p>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => setPendingStatusUpdate(null)}>Keep pending</Button>
+            <Button
+              variant={pendingStatusUpdate?.status === 'cancelled' ? 'destructive' : 'default'}
+              disabled={pendingStatusUpdate !== null && updatingId === pendingStatusUpdate.appointment.id}
+              onClick={confirmPendingStatusUpdate}
+            >
+              {pendingStatusUpdate?.status === 'confirmed' ? 'Accept appointment' : 'Decline request'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={actionResult !== null} onOpenChange={(open) => { if (!open) setActionResult(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {actionResult?.type === 'success'
+                ? <CheckCircle className="size-5 text-emerald-600" />
+                : <TriangleAlert className={`size-5 ${actionResult?.type === 'warning' ? 'text-amber-600' : 'text-destructive'}`} />}
+              {actionResult?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {actionResult && (
+            <div className="space-y-4 pt-2">
+              <p className="text-sm text-muted-foreground">{actionResult.message}</p>
+              <Button className="w-full sm:w-auto" onClick={() => setActionResult(null)}>Done</Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Clinic Reschedule & Reassign Modal */}
       {reschedulingApt && (

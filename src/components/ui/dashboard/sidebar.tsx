@@ -17,6 +17,7 @@ import {
   Shield,
   Activity,
   HeartPulse,
+  Building2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -30,7 +31,7 @@ const navigation = {
   clinic: [
     { name: 'Dashboard', href: '/clinic/dashboard', icon: LayoutDashboard },
     { name: 'Appointments', href: '/clinic/appointments', icon: Calendar },
-    { name: 'Doctors', href: '/clinic/doctors', icon: Users },
+    { name: 'Clinic', href: '/clinic/doctors', icon: Building2 },
     { name: 'Notifications', href: '/clinic/notifications', icon: Bell },
     { name: 'Account', href: '/clinic/account', icon: Settings },
   ],
