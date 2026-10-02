@@ -46,8 +46,8 @@ export default function PatientDashboard() {
   return (
     <div className="space-y-7">
       <header>
-        <p className="text-sm font-medium text-emerald-700">Your care overview</p>
-        <h1 className="mt-1 text-3xl font-bold text-emerald-950">Welcome back</h1>
+        <p className="text-xs font-bold uppercase text-primary">Your care overview</p>
+        <h1 className="mt-1 font-heading text-3xl font-medium text-foreground">Welcome back</h1>
         <p className="mt-2 text-sm text-muted-foreground">Keep track of your appointments and care requests in one place.</p>
       </header>
 
@@ -59,17 +59,17 @@ export default function PatientDashboard() {
 
       <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle className="text-emerald-950">Upcoming appointments</CardTitle>
+          <CardTitle className="font-heading text-foreground">Upcoming appointments</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {appointments.length === 0 ? (
             <p className="text-gray-500">No appointments scheduled yet.</p>
           ) : (
             appointments.slice(0, 4).map((apt) => (
-              <div key={apt.id} className="flex flex-col gap-3 rounded-md border border-emerald-100 bg-emerald-50/35 p-4 md:flex-row md:items-center md:justify-between">
+              <div key={apt.id} className="flex flex-col gap-3 rounded-md border border-border/80 bg-muted/45 p-4 transition-colors hover:border-primary/25 hover:bg-card md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-0.5 rounded bg-emerald-100 px-2 py-0.5 font-mono text-xs font-bold text-emerald-900">
+                    <span className="inline-flex items-center gap-0.5 rounded bg-secondary px-2 py-0.5 font-mono text-xs font-bold text-secondary-foreground">
                       <Hash className="size-3" />
                       {formatScheduleId(apt.id)}
                     </span>
@@ -77,13 +77,13 @@ export default function PatientDashboard() {
                   </div>
                   <p className="text-sm text-gray-500 mt-1">{format(new Date(apt.scheduled_at), 'PPp')}</p>
                   <p className="mt-1 flex items-center gap-2 text-sm text-gray-600">
-                    <Stethoscope className="h-4 w-4 text-emerald-700" /> Dr. {apt.doctor?.name || 'To be assigned'}
+                    <Stethoscope className="h-4 w-4 text-primary" /> Dr. {apt.doctor?.name || 'To be assigned'}
                   </p>
                   <p className="flex items-center gap-2 text-sm text-gray-600">
-                    <MapPin className="h-4 w-4 text-emerald-700" /> {apt.clinic?.address}
+                    <MapPin className="h-4 w-4 text-[#ba704d]" /> {apt.clinic?.address}
                   </p>
                 </div>
-                <span className="w-fit rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 capitalize">
+                <span className={`w-fit rounded-full px-3 py-1 text-xs font-bold capitalize ${apt.status === 'confirmed' ? 'bg-teal-100 text-teal-800' : apt.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-muted text-muted-foreground'}`}>
                   {apt.status}
                 </span>
               </div>
@@ -97,9 +97,9 @@ export default function PatientDashboard() {
 
 function StatCard({ title, value, icon: Icon, color }: { title: string; value: number; icon: LucideIcon; color: 'blue' | 'yellow' | 'green' }) {
   const palette = {
-    blue: 'bg-emerald-100 text-emerald-700',
+    blue: 'bg-sky-100 text-sky-700',
     yellow: 'bg-amber-100 text-amber-700',
-    green: 'bg-teal-100 text-teal-700',
+    green: 'bg-teal-100 text-teal-800',
   }
 
   return (
@@ -107,7 +107,7 @@ function StatCard({ title, value, icon: Icon, color }: { title: string; value: n
       <CardContent className="flex items-center justify-between p-6">
         <div>
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="mt-2 text-3xl font-bold text-emerald-950">{value}</p>
+          <p className="mt-2 font-heading text-3xl font-semibold text-foreground">{value}</p>
         </div>
         <div className={`rounded-lg p-3 ${palette[color as keyof typeof palette]}`}>
           <Icon className="h-6 w-6" />

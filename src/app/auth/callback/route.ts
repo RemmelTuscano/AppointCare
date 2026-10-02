@@ -16,7 +16,9 @@ export async function GET(request: Request) {
   if (authError) {
     const message = authErrorCode === 'otp_expired'
       ? 'This confirmation link has expired or was already used. Please request a new confirmation email.'
-      : 'We could not confirm your account. Please request a new confirmation email and try again.'
+      : searchParams.has('role')
+        ? 'Google sign-in could not be completed. Please try again.'
+        : 'We could not confirm your account. Please request a new confirmation email and try again.'
     return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(message)}`)
   }
 
@@ -27,7 +29,14 @@ export async function GET(request: Request) {
     }
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
+    if (error) {
+      const message = searchParams.has('role')
+        ? 'Google sign-in could not be completed. Please try again.'
+        : 'This confirmation link is invalid or has expired. Please request a new confirmation email.'
+      return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(message)}`)
+    }
+
+    {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         const { data: profile } = await supabase
@@ -66,5 +75,8 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent('This confirmation link is invalid or has expired. Please request a new confirmation email.')}`)
+  const message = searchParams.has('role')
+    ? 'Google sign-in could not be completed. Please try again.'
+    : 'This confirmation link is invalid or has expired. Please request a new confirmation email.'
+  return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(message)}`)
 }

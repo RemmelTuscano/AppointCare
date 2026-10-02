@@ -19,7 +19,7 @@ export function Switch({ checked = false, onCheckedChange, className }: SwitchPr
       onClick={() => onCheckedChange?.(!checked)}
       className={cn(
         'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-        checked ? 'bg-blue-600' : 'bg-gray-200',
+        checked ? 'bg-primary' : 'bg-muted-foreground/30',
         className,
       )}
     >

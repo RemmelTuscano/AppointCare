@@ -14,8 +14,9 @@ import {
   LogOut,
   Menu,
   X,
-  Shield
-  , Activity
+  Shield,
+  Activity,
+  HeartPulse,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -67,8 +68,8 @@ export function Sidebar({ role, userName }: SidebarProps) {
   return (
     <>
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-emerald-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
-        <span className="text-lg font-bold text-emerald-800">AppointCare</span>
+      <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between border-b border-border/80 bg-card/95 px-4 py-3 shadow-sm backdrop-blur lg:hidden">
+        <span className="inline-flex items-center gap-2 font-heading text-lg font-semibold text-foreground"><HeartPulse className="size-5 text-primary" />AppointCare</span>
         <Button variant="ghost" size="icon" aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </Button>
@@ -77,22 +78,29 @@ export function Sidebar({ role, userName }: SidebarProps) {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div 
-          className="lg:hidden fixed inset-0 z-40 bg-black/50"
+          className="fixed inset-0 z-40 bg-foreground/35 backdrop-blur-[2px] lg:hidden"
           onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
         />
       )}
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed lg:sticky top-0 left-0 z-50 flex h-screen w-72 flex-col border-r border-emerald-900/30 bg-[var(--sidebar)] text-[var(--sidebar-foreground)] shadow-xl transition-transform duration-300",
+        "fixed left-0 top-0 z-50 flex h-screen w-72 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-300 lg:sticky",
         mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
-        <div className="border-b border-white/10 p-6">
-          <h1 className="text-2xl font-bold tracking-normal text-white">AppointCare</h1>
-          <p className="mt-1 text-sm capitalize text-emerald-100/70">{activeRole} portal</p>
+        <div className="border-b border-sidebar-border/70 px-5 py-6">
+          <Link href={`/${activeRole}/dashboard`} className="flex items-center gap-3" aria-label="AppointCare dashboard">
+            <span className="grid size-10 place-items-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"><HeartPulse className="size-5" strokeWidth={2.5} /></span>
+            <span>
+              <span className="block font-heading text-xl font-semibold text-white">AppointCare</span>
+              <span className="mt-0.5 block text-[11px] font-bold uppercase text-sidebar-foreground/55">{activeRole} workspace</span>
+            </span>
+          </Link>
         </div>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto p-4" aria-label="Main navigation">
+        <div className="px-5 pb-2 pt-7 text-[10px] font-bold uppercase text-sidebar-foreground/40">Workspace</div>
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label="Main navigation">
           {items.map((item) => {
             const isActive = pathname === item.href
             return (
@@ -101,27 +109,30 @@ export function Sidebar({ role, userName }: SidebarProps) {
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-4 py-3 text-sm font-medium transition-colors",
-                  isActive 
-                    ? "bg-emerald-100 text-emerald-950 shadow-sm" 
-                    : "text-emerald-50/75 hover:bg-white/10 hover:text-white"
+                  "group flex min-h-11 items-center gap-3 rounded-md border border-transparent px-3.5 py-2.5 text-sm font-semibold transition-colors",
+                  isActive
+                    ? "border-sidebar-primary/20 bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                    : "text-sidebar-foreground/70 hover:border-white/5 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
               >
-                <item.icon className="h-5 w-5" />
+                <item.icon className="size-[18px] opacity-85 transition-transform group-hover:scale-105" />
                 {item.name}
               </Link>
             )
           })}
         </nav>
 
-        <div className="border-t border-white/10 p-4">
-          <div className="mb-4 px-4">
-            <p className="truncate text-sm font-medium text-white">{userName}</p>
-            <p className="text-xs capitalize text-emerald-100/65">{activeRole}</p>
+        <div className="border-t border-sidebar-border/70 p-4">
+          <div className="mb-4 flex min-w-0 items-center gap-3 px-1">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-sidebar-accent text-sm font-bold text-sidebar-accent-foreground">{userName.charAt(0).toUpperCase()}</span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-white">{userName}</p>
+              <p className="text-xs capitalize text-sidebar-foreground/55">{activeRole}</p>
+            </div>
           </div>
           <Button 
-            variant="outline" 
-            className="w-full justify-start gap-2 border-white/15 bg-white/5 text-emerald-50 hover:border-white/25 hover:bg-white/10 hover:text-white"
+            variant="ghost"
+            className="w-full justify-start gap-2 text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             onClick={handleLogout}
           >
             <LogOut className="h-4 w-4" />

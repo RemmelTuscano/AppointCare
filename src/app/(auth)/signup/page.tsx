@@ -167,7 +167,7 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
         <Input type="password" value={formData.confirmPassword} onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })} autoComplete="new-password" required />
       </div>
 
-      <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
+      <Button type="submit" className="w-full" disabled={loading}>
         {loading ? 'Creating Account...' : 'Sign Up'}
       </Button>
     </form>
@@ -234,7 +234,7 @@ function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit
         <Input type="password" value={formData.confirmPassword} onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })} autoComplete="new-password" required />
       </div>
 
-      <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
+      <Button type="submit" className="w-full" disabled={loading}>
         {loading ? 'Creating Account...' : 'Register Clinic'}
       </Button>
     </form>

@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
@@ -17,41 +17,45 @@ export async function updateSession(request: NextRequest) {
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
-      get(name: string) {
-        return request.cookies.get(name)?.value
+      getAll() {
+        return request.cookies.getAll()
       },
-      set(name: string, value: string, options: CookieOptions) {
-        request.cookies.set({ name, value, ...options })
+      setAll(cookiesToSet, headers) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
         response = NextResponse.next({
           request: { headers: request.headers },
         })
-        response.cookies.set({ name, value, ...options })
-      },
-      remove(name: string, options: CookieOptions) {
-        request.cookies.set({ name, value: '', ...options })
-        response = NextResponse.next({
-          request: { headers: request.headers },
+        cookiesToSet.forEach(({ name, value, options }) => {
+          response.cookies.set(name, value, options)
         })
-        response.cookies.set({ name, value: '', ...options })
+        Object.entries(headers).forEach(([name, value]) => {
+          response.headers.set(name, value)
+        })
       },
     },
   })
 
+  const clearStaleAuthCookies = () => {
+    request.cookies.getAll().forEach((cookie) => {
+      if (cookie.name.includes('-auth-token')) {
+        response.cookies.delete(cookie.name)
+      }
+    })
+  }
+
   try {
-    await supabase.auth.getUser()
+    const { error } = await supabase.auth.getUser()
+    if (error?.code === 'refresh_token_not_found') {
+      clearStaleAuthCookies()
+    }
   } catch (error) {
-    // Stale/invalid refresh token cookie (e.g. expired or from a signed-out session) - clear it so it stops being resent.
     if (
       error &&
       typeof error === 'object' &&
       'code' in error &&
       error.code === 'refresh_token_not_found'
     ) {
-      request.cookies.getAll().forEach((cookie) => {
-        if (cookie.name.includes('-auth-token')) {
-          response.cookies.delete(cookie.name)
-        }
-      })
+      clearStaleAuthCookies()
     } else {
       throw error
     }

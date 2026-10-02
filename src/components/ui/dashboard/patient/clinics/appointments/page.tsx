@@ -4,12 +4,17 @@ import { useEffect, useEffectEvent, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { format } from 'date-fns'
 import {
   CalendarDays,
   Check,
+  ChevronDown,
+  ChevronUp,
   Copy,
+  Eye,
+  EyeOff,
   Hash,
   MapPin,
   Search,
@@ -35,6 +40,7 @@ export default function PatientAppointments() {
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [expandedAppointmentId, setExpandedAppointmentId] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -118,6 +124,7 @@ export default function PatientAppointments() {
         {filteredAppointments.map((apt) => {
           const scheduleId = formatScheduleId(apt.id)
           const isDoctorUnavailable = apt.doctor && apt.doctor.is_available === false && apt.status !== 'cancelled' && apt.status !== 'completed'
+          const isDetailsOpen = expandedAppointmentId === apt.id
 
           return (
             <Card
@@ -143,7 +150,7 @@ export default function PatientAppointments() {
                         </button>
                       </div>
 
-                      <h3 className="truncate text-lg font-semibold text-emerald-950">
+                      <h3 className="truncate font-heading text-lg font-semibold text-emerald-950">
                         {apt.clinic?.name || 'Clinic'}
                       </h3>
 
@@ -201,13 +208,67 @@ export default function PatientAppointments() {
                       </div>
                     )}
 
-                    {apt.notes && (
-                      <p className="rounded-md border border-emerald-100 bg-emerald-50/50 p-3 text-sm text-muted-foreground">
-                        {apt.notes}
-                      </p>
-                    )}
                   </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-expanded={isDetailsOpen}
+                    aria-controls={`appointment-details-${apt.id}`}
+                    className="w-full justify-between gap-2 sm:w-auto sm:justify-center"
+                    onClick={() => setExpandedAppointmentId(isDetailsOpen ? null : apt.id)}
+                  >
+                    {isDetailsOpen ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    {isDetailsOpen ? 'Hide details' : 'View details'}
+                    {isDetailsOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                  </Button>
                 </div>
+                {isDetailsOpen && (
+                  <section
+                    id={`appointment-details-${apt.id}`}
+                    aria-label={`Details for ${scheduleId}`}
+                    className="mt-5 border-t border-border/70 pt-5"
+                  >
+                    <h4 className="font-heading text-lg font-semibold text-foreground">Appointment details</h4>
+                    <dl className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div>
+                        <dt className="text-xs font-semibold uppercase text-muted-foreground">Schedule ID</dt>
+                        <dd className="mt-1 font-mono text-sm font-semibold text-foreground">{scheduleId}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase text-muted-foreground">Appointment time</dt>
+                        <dd className="mt-1 text-sm font-medium text-foreground">{format(new Date(apt.scheduled_at), 'PPpp')}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase text-muted-foreground">Status</dt>
+                        <dd className="mt-1 text-sm font-medium capitalize text-foreground">{apt.status}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase text-muted-foreground">Clinic</dt>
+                        <dd className="mt-1 text-sm font-medium text-foreground">{apt.clinic?.name || 'Clinic'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase text-muted-foreground">Clinic address</dt>
+                        <dd className="mt-1 text-sm text-foreground">{apt.clinic?.address || 'Not provided'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase text-muted-foreground">Doctor</dt>
+                        <dd className="mt-1 text-sm text-foreground">
+                          {apt.doctor?.name ? `Dr. ${apt.doctor.name}` : 'To be assigned'}
+                          {apt.doctor?.specialization ? ` · ${apt.doctor.specialization}` : ''}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase text-muted-foreground">Booked on</dt>
+                        <dd className="mt-1 text-sm text-foreground">{format(new Date(apt.created_at), 'PP')}</dd>
+                      </div>
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <dt className="text-xs font-semibold uppercase text-muted-foreground">Notes</dt>
+                        <dd className="mt-1 whitespace-pre-wrap text-sm text-foreground">{apt.notes || 'No notes provided.'}</dd>
+                      </div>
+                    </dl>
+                  </section>
+                )}
               </CardContent>
             </Card>
           )
