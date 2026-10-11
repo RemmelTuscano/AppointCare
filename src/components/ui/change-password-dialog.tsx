@@ -19,7 +19,7 @@ export function ChangePasswordDialog({ triggerLabel = 'Change password' }: { tri
 
   useEffect(() => {
     if (!supabase) return
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(({ data }: { data: { user: { user_metadata?: Record<string, unknown> } | null } }) => {
       const changedAt = data.user?.user_metadata?.password_changed_at
       if (typeof changedAt === 'string') setLastChangedAt(changedAt)
     })

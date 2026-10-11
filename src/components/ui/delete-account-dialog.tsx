@@ -32,7 +32,7 @@ export function DeleteAccountDialog() {
 
   return (
     <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) { setConfirmText(''); setMessage(null) } }}>
-      <DialogTrigger asChild>
+      <DialogTrigger>
         <Button variant="destructive">Delete account</Button>
       </DialogTrigger>
       <DialogContent>

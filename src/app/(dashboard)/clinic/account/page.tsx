@@ -149,7 +149,7 @@ const { data, error } = await supabase
     }
   }
 
-  const getPermitPublicUrl = (path: string | null) => {
+  const getPermitPublicUrl = (path: string | null | undefined) => {
     if (!path) return null
     const { data } = supabase.storage.from('clinic_permits').getPublicUrl(path)
     return data.publicUrl
