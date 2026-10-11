@@ -237,6 +237,76 @@ export function getRescheduledEmailHtml({
   `
 }
 
+export function getCancelledEmailHtml({
+  scheduleId,
+  patientName,
+  clinicName,
+  doctorName,
+  scheduledAt,
+  reason,
+}: EmailBaseProps & { reason?: string | null }) {
+  const formattedDate = format(new Date(scheduledAt), 'EEEE, MMMM d, yyyy')
+  const formattedTime = format(new Date(scheduledAt), 'h:mm a')
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>${emailStyles}</style>
+</head>
+<body>
+  <div class="container">
+    <div class="header" style="background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);">
+      <h1 class="logo">AppointCare</h1>
+      <p class="tagline" style="color: #fecaca;">Appointment Request Update</p>
+    </div>
+    <div class="body-content">
+      <div style="text-align: center; margin-bottom: 16px;">
+        <span class="badge badge-cancelled">Request Declined</span>
+      </div>
+
+      <h2 style="font-size: 20px; color: #7f1d1d; margin-top: 0; text-align: center;">
+        Your Appointment Request Was Declined
+      </h2>
+
+      <p>Hello <strong>${patientName || 'Valued Patient'}</strong>,</p>
+      <p>We're sorry, but <strong>${clinicName || 'the clinic'}</strong> could not accommodate your appointment request. You can book another time or clinic from your AppointCare dashboard.</p>
+
+      <table class="details-table">
+        <tr>
+          <td class="label-cell">Schedule ID</td>
+          <td class="value-cell" style="font-family: monospace;">${scheduleId}</td>
+        </tr>
+        <tr>
+          <td class="label-cell">Requested Date</td>
+          <td class="value-cell">${formattedDate} at ${formattedTime}</td>
+        </tr>
+        <tr>
+          <td class="label-cell">Doctor</td>
+          <td class="value-cell">Dr. ${doctorName || 'Assigned Specialist'}</td>
+        </tr>
+        <tr>
+          <td class="label-cell">Clinic</td>
+          <td class="value-cell">${clinicName || 'Clinic'}</td>
+        </tr>
+        ${reason ? `
+        <tr>
+          <td class="label-cell">Reason</td>
+          <td class="value-cell">${reason}</td>
+        </tr>` : ''}
+      </table>
+    </div>
+    <div class="footer">
+      <p>© ${new Date().getFullYear()} AppointCare. Automated notification.</p>
+      <p>Schedule ID: ${scheduleId}</p>
+    </div>
+  </div>
+</body>
+</html>
+  `
+}
+
 export function getDoctorUnavailableEmailHtml({
   scheduleId,
   patientName,

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ChangePasswordDialog } from '@/components/ui/change-password-dialog'
+import { DeleteAccountDialog } from '@/components/ui/delete-account-dialog'
 import { KeyRound, MapPin, UserRound } from 'lucide-react'
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
@@ -116,6 +117,16 @@ export default async function AccountPage() {
               </div>
               <div className="flex justify-end pt-2"><Button type="submit">Save notification preferences</Button></div>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card className="border-red-200">
+          <CardHeader>
+            <CardTitle className="text-red-700">Delete account</CardTitle>
+            <CardDescription>Permanently remove your account and all associated data</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DeleteAccountDialog />
           </CardContent>
         </Card>
       </div>

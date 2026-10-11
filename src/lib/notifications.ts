@@ -4,6 +4,7 @@ import {
   getConfirmationEmailHtml,
   getRescheduledEmailHtml,
   getDoctorUnavailableEmailHtml,
+  getCancelledEmailHtml,
   getReminderEmailHtml,
 } from './email-templates'
 import { sendSmsNotification } from './sms'
@@ -124,6 +125,18 @@ export async function dispatchAutomatedNotifications(
         doctorName: payload.doctorName,
         scheduledAt: payload.scheduledAt,
         rescheduleUrl: payload.rescheduleUrl || '/patient/appointments',
+      })
+      break
+
+    case 'cancelled':
+      emailSubject = `Appointment Request Declined [${scheduleId}] - ${payload.clinicName || 'AppointCare'}`
+      emailHtml = getCancelledEmailHtml({
+        scheduleId,
+        patientName: payload.patientName,
+        clinicName: payload.clinicName,
+        doctorName: payload.doctorName,
+        scheduledAt: payload.scheduledAt,
+        reason: payload.reason,
       })
       break
 

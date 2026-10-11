@@ -13,11 +13,21 @@ export async function POST(request: Request) {
       )
     }
 
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    // Client queries may be blocked by RLS and omit patient contact details.
+    if (body.patientUserId && url && serviceRoleKey && (!body.patientEmail || !body.patientPhone)) {
+      const lookup = createClient(url, serviceRoleKey)
+      const { data: patient } = await lookup.from('profiles').select('email, phone, full_name').eq('id', body.patientUserId).maybeSingle()
+      body.patientEmail = body.patientEmail || patient?.email
+      body.patientPhone = body.patientPhone || patient?.phone
+      body.patientName = body.patientName || patient?.full_name
+    }
+
     const result = await dispatchAutomatedNotifications(body)
 
     // Also persist in-app notifications to database if Supabase credentials available
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
     if (url && serviceRoleKey && result.inAppNotifications.length > 0) {
       const supabase = createClient(url, serviceRoleKey)

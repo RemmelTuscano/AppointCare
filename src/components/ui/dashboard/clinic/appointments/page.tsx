@@ -75,6 +75,7 @@ export default function ClinicAppointments() {
   const [actionResult, setActionResult] = useState<{ type: 'success' | 'warning' | 'error'; title: string; message: string } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [dateFilter, setDateFilter] = useState('')
 
   // Reschedule dialog state
   const [reschedulingApt, setReschedulingApt] = useState<ClinicAppointment | null>(null)
@@ -307,15 +308,59 @@ export default function ClinicAppointments() {
     }
   }
 
-  const filteredAppointments = appointments.filter((apt) => {
-    const scheduleId = formatScheduleId(apt.id).toLowerCase()
-    const patientName = apt.patient?.full_name?.toLowerCase() || ''
-    const patientEmail = apt.patient?.email?.toLowerCase() || ''
-    const doctorName = apt.doctor?.name?.toLowerCase() || ''
-    const q = searchQuery.toLowerCase().trim()
-    if (!q) return true
-    return scheduleId.includes(q) || patientName.includes(q) || patientEmail.includes(q) || doctorName.includes(q)
-  })
+  const markAsDone = async (id: string) => {
+    setUpdatingId(id)
+    const { data: apt, error } = await supabase
+      .from('appointments')
+      .update({ status: 'completed' })
+      .eq('id', id)
+      .select('*, patient:profiles(full_name), doctor:doctors(name), clinic:clinics(name)')
+      .single()
+
+    if (apt && !error) {
+      const { data: { user: actor } } = await supabase.auth.getUser()
+      const scheduleId = formatScheduleId(id)
+      await supabase.from('activity_logs').insert({
+        actor_id: actor?.id,
+        action: 'appointment_completed',
+        entity_type: 'appointment',
+        entity_id: id,
+        summary: `Appointment completed for ${apt.patient?.full_name || 'patient'}`,
+        metadata: { scheduleId, clinic: apt.clinic?.name, doctor: apt.doctor?.name },
+      })
+      setAppointments((current) => current.map((appointment) => (
+        appointment.id === id ? { ...appointment, status: 'completed' } : appointment
+      )))
+      setActionResult({
+        type: 'success',
+        title: 'Appointment marked as done',
+        message: `Appointment [${scheduleId}] has been marked as completed.`,
+      })
+    } else {
+      setActionResult({
+        type: 'error',
+        title: 'Appointment not updated',
+        message: 'We could not mark this appointment as done. Please try again.',
+      })
+    }
+    setUpdatingId(null)
+  }
+
+  const filteredAppointments = appointments
+    .filter((apt) => {
+      const scheduleId = formatScheduleId(apt.id).toLowerCase()
+      const patientName = apt.patient?.full_name?.toLowerCase() || ''
+      const patientEmail = apt.patient?.email?.toLowerCase() || ''
+      const doctorName = apt.doctor?.name?.toLowerCase() || ''
+      const q = searchQuery.toLowerCase().trim()
+      if (dateFilter && new Date(apt.scheduled_at).getDate() !== Number(dateFilter)) return false
+      if (!q) return true
+      return scheduleId.includes(q) || patientName.includes(q) || patientEmail.includes(q) || doctorName.includes(q)
+    })
+    .sort((first, second) => {
+      if (!dateFilter) return 0
+      return new Date(first.scheduled_at).getTime() - new Date(second.scheduled_at).getTime()
+    })
 
   if (loading) return <div className="text-center py-12 text-muted-foreground">Loading appointment management...</div>
 
@@ -330,14 +375,29 @@ export default function ClinicAppointments() {
           </p>
         </div>
 
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by SCH- ID or patient..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <div className="flex items-center gap-1">
+            <select
+              aria-label="Filter appointments by day of month"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="h-9 w-full rounded-md border bg-background px-3 text-sm sm:w-40"
+            >
+              <option value="">All days</option>
+              {Array.from({ length: 30 }, (_, i) => i + 1).map((day) => (
+                <option key={day} value={String(day)}>Day {day}</option>
+              ))}
+            </select>
+          </div>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by SCH- ID or patient..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
         </div>
       </header>
 
@@ -457,6 +517,17 @@ export default function ClinicAppointments() {
                       >
                         <CalendarSync className="mr-1.5 size-4" />
                         {isDoctorUnavailable ? 'Reassign / Reschedule' : 'Reschedule'}
+                      </Button>
+                    )}
+
+                    {apt.status === 'confirmed' && (
+                      <Button
+                        size="sm"
+                        disabled={updatingId === apt.id}
+                        onClick={() => void markAsDone(apt.id)}
+                        className="bg-emerald-700 hover:bg-emerald-800"
+                      >
+                        <CheckCircle className="mr-1 size-4" /> {updatingId === apt.id ? 'Updating' : 'Done'}
                       </Button>
                     )}
 

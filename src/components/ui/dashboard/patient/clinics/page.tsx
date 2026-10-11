@@ -31,7 +31,21 @@ type BookingResult = {
   scheduledAt?: string
 }
 
+const TIME_SLOTS = ['09:00 AM', '10:00 AM', '11:00 AM', '01:30 PM', '02:30 PM', '03:30 PM', '04:30 PM']
+
+function applyTimeSlot(date: Date, slot: string) {
+  const [time, modifier] = slot.split(' ')
+  let hours = Number(time.split(':')[0])
+  const minutes = Number(time.split(':')[1])
+  if (modifier === 'PM' && hours < 12) hours += 12
+  if (modifier === 'AM' && hours === 12) hours = 0
+  const result = new Date(date)
+  result.setHours(hours, minutes, 0, 0)
+  return result
+}
+
 export default function PatientClinics() {
+  const [selectedTime, setSelectedTime] = useState('')
   const [clinics, setClinics] = useState<Clinic[]>([])
   const [selectedClinic, setSelectedClinic] = useState<Clinic | null>(null)
   const [doctors, setDoctors] = useState<ClinicDoctor[]>([])
@@ -71,13 +85,14 @@ export default function PatientClinics() {
     setDoctors(availableDocs)
     setSelectedDoctor('')
     setSelectedDate(undefined)
+    setSelectedTime('')
     setNotes('')
     setBookingStarted(false)
   }
 
   const bookAppointment = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !selectedClinic || !selectedDate || !selectedDoctor) {
+    if (!user || !selectedClinic || !selectedDate || !selectedDoctor || !selectedTime) {
       setBookingResult({
         type: 'error',
         title: 'Appointment request not sent',
@@ -88,8 +103,7 @@ export default function PatientClinics() {
     setIsBooking(true)
     setIsBookingConfirmationOpen(false)
 
-    const scheduledAt = new Date(selectedDate)
-    scheduledAt.setHours(9, 0, 0, 0) // Default to 9 AM
+    const scheduledAt = applyTimeSlot(selectedDate, selectedTime)
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -311,6 +325,22 @@ export default function PatientClinics() {
                   />
                 </div>
                 <div>
+                  <h3 className="mb-3 font-medium text-emerald-950">Select a time</h3>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {TIME_SLOTS.map((slot) => (
+                      <Button
+                        key={slot}
+                        type="button"
+                        variant={selectedTime === slot ? 'default' : 'outline'}
+                        aria-pressed={selectedTime === slot}
+                        onClick={() => setSelectedTime(slot)}
+                      >
+                        {slot}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <div>
                   <label htmlFor="appointment-notes" className="mb-3 block font-medium text-emerald-950">Notes (optional)</label>
                   <textarea
                     id="appointment-notes"
@@ -323,7 +353,7 @@ export default function PatientClinics() {
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Button variant="outline" className="sm:flex-1" onClick={() => setBookingStarted(false)}>Back to doctor selection</Button>
-                  <Button className="sm:flex-1" disabled={!selectedDate} onClick={() => setIsBookingConfirmationOpen(true)}>
+                  <Button className="sm:flex-1" disabled={!selectedDate || !selectedTime} onClick={() => setIsBookingConfirmationOpen(true)}>
                     <CheckCircle2 className="mr-2 size-4" /> Review request
                   </Button>
                 </div>
@@ -355,7 +385,7 @@ export default function PatientClinics() {
               </div>
               <div>
                 <dt className="text-xs font-semibold uppercase text-muted-foreground">Time</dt>
-                <dd className="mt-1 font-medium text-foreground">9:00 AM</dd>
+                <dd className="mt-1 font-medium text-foreground">{selectedTime.replace(/^0/, '')}</dd>
               </div>
               {notes.trim() && (
                 <div className="sm:col-span-2">
