@@ -45,7 +45,7 @@ export function Calendar({ selected, onSelect, disabled, className }: CalendarPr
       </div>
       <div className="mt-2 grid grid-cols-7 gap-1">
         {days.map((day, index) => {
-          if (!day) return <div key={`empty-${index}`} className="size-10" aria-hidden="true" />
+          if (!day) return <div key={`empty-${index}`} className="aspect-square w-full" aria-hidden="true" />
 
           const isSelected = selected?.toDateString() === day.toDateString()
           const isDisabled = disabled ? disabled(day) : false
@@ -63,7 +63,7 @@ export function Calendar({ selected, onSelect, disabled, className }: CalendarPr
                 }
               }}
               className={[
-                'size-10 rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-3 focus:ring-emerald-100',
+                'aspect-square w-full rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-3 focus:ring-emerald-100',
                 isSelected ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-950',
                 isDisabled ? 'cursor-not-allowed text-gray-300 opacity-60 hover:bg-transparent hover:text-gray-300' : '',
               ].join(' ')}

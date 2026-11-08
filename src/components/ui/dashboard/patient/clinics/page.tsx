@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ArrowLeft, CheckCircle2, CircleAlert, MapPin, Stethoscope, UserCheck, UserRound, UsersRound } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, CircleAlert, Clock3, MapPin, Stethoscope, UserCheck, UserRound, UsersRound } from 'lucide-react'
 
 type ClinicDoctor = {
   id: string
@@ -314,31 +314,43 @@ export default function PatientClinics() {
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div>
-                  <h3 className="mb-3 font-medium text-emerald-950">Select a date</h3>
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0)) || date.getDay() === 0}
-                    className="rounded-md border"
-                  />
-                </div>
-                <div>
-                  <h3 className="mb-3 font-medium text-emerald-950">Select a time</h3>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {TIME_SLOTS.map((slot) => (
-                      <Button
-                        key={slot}
-                        type="button"
-                        variant={selectedTime === slot ? 'default' : 'outline'}
-                        aria-pressed={selectedTime === slot}
-                        onClick={() => setSelectedTime(slot)}
-                      >
-                        {slot}
-                      </Button>
-                    ))}
-                  </div>
+                <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] lg:gap-8">
+                  <section className="min-w-0" aria-labelledby="booking-date-heading">
+                    <h3 id="booking-date-heading" className="flex items-center gap-2 font-semibold text-emerald-950"><CalendarDays className="size-4 text-emerald-700" /> Select a date</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">Appointments are available Monday to Saturday.</p>
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0)) || date.getDay() === 0}
+                      className="mt-4 rounded-md border border-emerald-100 bg-white"
+                    />
+                  </section>
+                  <section className="min-w-0" aria-labelledby="booking-time-heading">
+                    <h3 id="booking-time-heading" className="flex items-center gap-2 font-semibold text-emerald-950"><Clock3 className="size-4 text-emerald-700" /> Select a time</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{selectedDate ? selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'Choose a date for your appointment.'}</p>
+                    <div className="mt-4 space-y-5">
+                      {['Morning', 'Afternoon'].map((period) => (
+                        <div key={period}>
+                          <h4 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{period}</h4>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+                            {TIME_SLOTS.filter((slot) => slot.endsWith(period === 'Morning' ? 'AM' : 'PM')).map((slot) => (
+                              <Button
+                                key={slot}
+                                type="button"
+                                variant={selectedTime === slot ? 'default' : 'outline'}
+                                aria-pressed={selectedTime === slot}
+                                className="w-full"
+                                onClick={() => setSelectedTime(slot)}
+                              >
+                                {slot}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                 </div>
                 <div>
                   <label htmlFor="appointment-notes" className="mb-3 block font-medium text-emerald-950">Notes (optional)</label>
