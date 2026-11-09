@@ -49,6 +49,7 @@ export async function POST(request: Request) {
 
   let count = 0
   let failures = 0
+  let warnings = 0
 
   for (const apt of (appointments || [])) {
     const patientData = apt.patient as { email?: string | null; phone?: string | null; full_name?: string | null } | null
@@ -69,11 +70,13 @@ export async function POST(request: Request) {
     })
     count++
     if ((!result.email.sent && !result.email.skipped) || (!result.sms.sent && !result.sms.skipped)) failures++
+    if (result.sms.warning) warnings++
   }
 
   return NextResponse.json({
-    success: failures === 0,
+    success: failures === 0 && warnings === 0,
     count,
     failures,
-  }, { status: failures ? 207 : 200, headers: { 'Cache-Control': 'private, no-store' } })
+    warnings,
+  }, { status: failures || warnings ? 207 : 200, headers: { 'Cache-Control': 'private, no-store' } })
 }

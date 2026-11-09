@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { describeNotificationStatus, notificationsAccepted } from '@/lib/notification-status'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -150,15 +151,20 @@ export default function PatientClinics() {
 
     const apt = bookingPayload.appointment
 
-    let notificationFailed = false
+    let notificationMessage = 'Notification delivery could not be confirmed.'
     try {
       const notificationResponse = await fetch('/api/notifications/dispatch', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'created', appointmentId: apt.id }),
       })
-      notificationFailed = !notificationResponse.ok
+      const notificationResult = await notificationResponse.json()
+      if (notificationResponse.ok && notificationResult.success) {
+        notificationMessage = notificationsAccepted(notificationResult)
+          ? 'Email and SMS were accepted by their providers; delivery is not confirmed.'
+          : describeNotificationStatus(notificationResult)
+      }
     } catch {
-      notificationFailed = true
+      notificationMessage = 'Notification delivery could not be confirmed.'
     }
 
     setSelectedClinic(null)
@@ -168,9 +174,7 @@ export default function PatientClinics() {
     setBookingResult({
       type: 'success',
       title: 'Appointment requested',
-      message: notificationFailed
-        ? `Your request was saved for ${selectedClinic.name}, but notification delivery could not be confirmed. The clinic will review your appointment shortly.`
-        : `Your request has been sent to ${selectedClinic.name}${chosenDoctor?.name ? ` with ${chosenDoctor.name}` : ''}. The clinic will confirm your appointment shortly.`,
+      message: `Your request has been sent to ${selectedClinic.name}${chosenDoctor?.name ? ` with ${chosenDoctor.name}` : ''}. ${notificationMessage}`,
       scheduledAt: apt.scheduled_at,
     })
     setIsBooking(false)

@@ -78,6 +78,26 @@ The old direct email and SMS endpoints return HTTP 410; they must not be used to
 messages. The dispatch endpoint accepts only an appointment ID and event type and verifies the
 signed-in patient or clinic owner and the appointment state.
 
+Configure these server-only environment variables (never use the `NEXT_PUBLIC_` prefix):
+
+- `RESEND_API_KEY`: a Resend API key.
+- `RESEND_FROM_EMAIL`: a sender address on a verified Resend domain, optionally formatted
+  as `AppointCare <appointments@example.com>`. Resend's test sender has recipient restrictions.
+- `TEXTBEE_API_KEY`: a TextBee API key.
+- `TEXTBEE_DEVICE_ID` (optional): a registered TextBee device ID. If omitted, TextBee selects
+  the default or most recently active enabled device.
+
+TextBee needs a registered Android phone with the app online and a working SIM. Save patient
+phone numbers with a country code when needed (for example `+15551234567`); local numbers are
+interpreted by the sending SIM's carrier. Patients can enable or disable email and SMS in
+account preferences. Missing credentials and provider failures are reported rather than
+simulated. A provider accepting a request does not guarantee delivery.
+
+For an end-to-end check, use a test patient with contact details you control, enable the desired
+notification channels, and create or update an appointment in the app. Check the displayed
+channel status and the provider dashboards; this sends real messages and may incur charges.
+Run `node --test scripts/test-notifications.mjs` for offline mocked provider tests.
+
 To run reminders, set `REMINDER_CRON_SECRET` to a randomly generated secret of at least 32
 characters in the server environment. Configure a trusted scheduler to send a POST request to
 `/api/notifications/reminders` with `Authorization: Bearer <secret>`. The endpoint is disabled

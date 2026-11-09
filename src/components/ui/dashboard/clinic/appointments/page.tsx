@@ -26,6 +26,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { formatScheduleId } from '@/lib/email-templates'
+import { describeNotificationStatus, notificationsAccepted } from '@/lib/notification-status'
 
 type ClinicAppointment = {
   id: string
@@ -179,22 +180,14 @@ export default function ClinicAppointments() {
         const result = await response.json()
         if (!response.ok || !result.success) throw new Error(result.error || 'Notification dispatch failed.')
 
-        const describeChannel = (name: string, channel?: { sent?: boolean; simulated?: boolean; skipped?: boolean; error?: string }) => {
-          if (!channel) return `${name}: no delivery result returned.`
-          if (channel.skipped) return `${name}: skipped (${channel.error || 'not enabled'}).`
-          if (channel.simulated) return `${name}: simulated locally; not delivered.`
-          if (channel.sent) return `${name}: accepted by provider; recipient delivery is not confirmed.`
-          return `${name}: failed (${channel.error || 'provider did not accept the message'}).`
-        }
-        const channels = [result.email, result.sms]
-        const allAccepted = channels.every((channel) => channel?.sent && !channel.simulated && !channel.skipped)
+        const allAccepted = notificationsAccepted(result)
 
         setActionResult({
           type: allAccepted ? 'success' : 'warning',
           title: allAccepted
             ? `Appointment ${statusLabel}`
             : `Appointment ${statusLabel}; notification delivery needs attention`,
-          message: `Appointment [${scheduleId}] ${statusLabel}. ${describeChannel('Email', result.email)} ${describeChannel('SMS', result.sms)}`,
+          message: `Appointment [${scheduleId}] ${statusLabel}. ${describeNotificationStatus(result)}`,
         })
       } catch (notificationError) {
         setActionResult({
@@ -260,10 +253,11 @@ export default function ClinicAppointments() {
         throw new Error(data.error || 'Failed to reschedule appointment')
       }
 
+      const allAccepted = data.notifications && notificationsAccepted(data.notifications)
       setActionResult({
-        type: 'success',
-        title: 'Appointment rescheduled',
-        message: `Appointment [${formatScheduleId(reschedulingApt.id)}] rescheduled successfully. Automated Email and SMS have been dispatched to the patient.`,
+        type: allAccepted ? 'success' : 'warning',
+        title: allAccepted ? 'Appointment rescheduled' : 'Appointment rescheduled; notifications need attention',
+        message: `Appointment [${formatScheduleId(reschedulingApt.id)}] rescheduled. ${data.notifications ? describeNotificationStatus(data.notifications) : 'Notification status was not returned.'}`,
       })
 
       setReschedulingApt(null)

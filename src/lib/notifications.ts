@@ -34,7 +34,7 @@ export interface NotificationPayload {
 
 export interface DispatchResult {
   email: { sent: boolean; error?: string; simulated?: boolean; skipped?: boolean }
-  sms: { sent: boolean; messageId?: string; simulated?: boolean; error?: string; skipped?: boolean }
+  sms: { sent: boolean; messageId?: string; simulated?: boolean; warning?: string; error?: string; skipped?: boolean }
   scheduleId: string
   inAppNotifications: Array<{ userId: string; title: string; message: string }>
 }
@@ -51,17 +51,26 @@ export async function dispatchAutomatedNotifications(
   }
 
   let preferences: { email?: boolean; sms?: boolean } | undefined
+  let preferencesError = false
   if (payload.patientUserId && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
       const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-      const [{ data: profile }, { data: authUser }] = await Promise.all([
+      const [profileResult, authResult] = await Promise.all([
         supabase.from('profiles').select('notification_preferences').eq('id', payload.patientUserId).maybeSingle(),
         supabase.auth.admin.getUserById(payload.patientUserId),
       ])
-      preferences = profile?.notification_preferences || authUser.user?.user_metadata?.notification_preferences
+      preferences = profileResult.data?.notification_preferences || authResult.data.user?.user_metadata?.notification_preferences
+      if (!preferences && (profileResult.error || authResult.error)) {
+        console.warn('Could not load patient notification preferences.')
+        preferencesError = true
+      }
     } catch (error) {
       console.warn('Could not load patient notification preferences:', error)
+      preferencesError = true
     }
+  } else if (payload.patientUserId) {
+    console.warn('Patient notification preferences cannot be checked: database service is not configured.')
+    preferencesError = true
   }
 
   // 1. Generate Email HTML & Subject
@@ -166,46 +175,50 @@ export async function dispatchAutomatedNotifications(
   }
 
   // 2. Dispatch Email
-  if (preferences?.email === false) {
+  if (preferencesError) {
+    result.email = { sent: false, error: 'Unable to verify patient notification preferences.' }
+  } else if (preferences?.email === false) {
     result.email = { sent: false, skipped: true, error: 'Patient has disabled email notifications.' }
   } else if (!payload.patientEmail) {
     result.email = { sent: false, skipped: true, error: 'Patient email address is missing.' }
   } else {
-    const apiKey = process.env.RESEND_API_KEY
+    const apiKey = process.env.RESEND_API_KEY?.trim()
     const isRealKey = apiKey && !apiKey.startsWith('your_') && !apiKey.includes('placeholder') && apiKey !== 're_123456789'
-    const fromEmail = process.env.RESEND_FROM_EMAIL
+    const fromEmail = process.env.RESEND_FROM_EMAIL?.trim()
 
     if (isRealKey) {
       if (!fromEmail) {
         result.email = { sent: false, error: 'RESEND_FROM_EMAIL is not configured. Set it to a verified sender address.' }
       } else {
-      try {
-        const resend = new Resend(apiKey)
-        const { error } = await resend.emails.send({
-          from: fromEmail,
-          to: payload.patientEmail,
-          subject: emailSubject,
-          html: emailHtml,
-        })
-        if (error) {
-          result.email = { sent: false, error: error.message }
-        } else {
-          result.email = { sent: true }
+        try {
+          const resend = new Resend(apiKey)
+          const { data, error } = await resend.emails.send({
+            from: fromEmail,
+            to: payload.patientEmail,
+            subject: emailSubject,
+            html: emailHtml,
+          })
+          if (error) {
+            result.email = { sent: false, error: error.message }
+          } else if (!data?.id) {
+            result.email = { sent: false, error: 'Resend did not confirm the email request.' }
+          } else {
+            result.email = { sent: true }
+          }
+        } catch (err: unknown) {
+          console.warn('Resend email request failed:', err)
+          result.email = { sent: false, error: 'Resend request failed. Check the server logs.' }
         }
-      } catch (err: unknown) {
-        result.email = { sent: false, error: err instanceof Error ? err.message : 'Email delivery failed' }
       }
-      }
-    } else if (process.env.NODE_ENV === 'production') {
-      result.email = { sent: false, error: 'RESEND_API_KEY is not configured.' }
     } else {
-      console.log(`[Email Automation Simulator] To: ${payload.patientEmail} | Subject: "${emailSubject}" | Ref: ${scheduleId}`)
-      result.email = { sent: true, simulated: true }
+      result.email = { sent: false, error: 'RESEND_API_KEY is not configured.' }
     }
   }
 
   // 3. Dispatch SMS only when the patient opted in and has a phone number.
-  if (preferences?.sms === false) {
+  if (preferencesError) {
+    result.sms = { sent: false, error: 'Unable to verify patient notification preferences.' }
+  } else if (preferences?.sms === false) {
     result.sms = { sent: false, skipped: true, error: 'Patient has disabled SMS notifications.' }
   } else if (!payload.patientPhone) {
     result.sms = { sent: false, skipped: true, error: 'Patient phone number is missing.' }
@@ -223,7 +236,7 @@ export async function dispatchAutomatedNotifications(
     result.sms = {
       sent: smsRes.success,
       messageId: smsRes.messageId,
-      simulated: smsRes.simulated,
+      warning: smsRes.warning,
       error: smsRes.error,
     }
   }

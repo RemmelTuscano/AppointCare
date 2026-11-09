@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useEffectEvent, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { notificationsAccepted } from '@/lib/notification-status'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -212,7 +213,7 @@ export default function ClinicDoctors() {
           .in('status', ['pending', 'confirmed'])
 
         if (affectedApts && affectedApts.length > 0) {
-          let notifiedCount = 0
+          let acceptedCount = 0
           for (const apt of affectedApts) {
             const response = await fetch('/api/notifications/dispatch', {
               method: 'POST',
@@ -222,11 +223,12 @@ export default function ClinicDoctors() {
                 appointmentId: apt.id,
               }),
             })
-            if (!response.ok) throw new Error('Patient alert could not be dispatched.')
-            notifiedCount++
+            const result = await response.json()
+            if (!response.ok || !result.success) throw new Error('Patient alert could not be dispatched.')
+            if (notificationsAccepted(result)) acceptedCount++
           }
 
-          setMessage(`Dr. ${targetDoctor.name} marked unavailable. Automated Email & SMS alerts with Schedule IDs were sent to ${notifiedCount} affected patient(s). You can reassign or reschedule their visits under Appointments.`)
+          setMessage(`Dr. ${targetDoctor.name} marked unavailable. Email and SMS were accepted by their providers for ${acceptedCount} of ${affectedApts.length} affected patient(s); delivery is not confirmed. Other channels may have been skipped or failed.`)
           setUpdatingDoctorId(null)
           return
         }

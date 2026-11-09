@@ -41,14 +41,16 @@ export function generateSmsMessage({
   }
 }
 
-export async function sendSmsNotification(params: SMSParams): Promise<{ success: boolean; messageId?: string; simulated?: boolean; error?: string }> {
+export async function sendSmsNotification(params: SMSParams): Promise<{ success: boolean; messageId?: string; warning?: string; error?: string }> {
   const body = generateSmsMessage(params)
 
-  const apiKey = process.env.TEXTBEE_API_KEY
+  const apiKey = process.env.TEXTBEE_API_KEY?.trim()
   const hasApiKey = Boolean(apiKey && !apiKey.startsWith('your_') && !apiKey.includes('placeholder'))
+  const deviceId = process.env.TEXTBEE_DEVICE_ID?.trim()
+  const phone = params.to.trim().replace(/[\s().-]/g, '')
 
-  if (!params.to.trim()) {
-    return { success: false, error: 'Recipient phone number is missing.' }
+  if (!/^\+?\d+$/.test(phone)) {
+    return { success: false, error: 'Recipient phone number is invalid. Include the country code when needed.' }
   }
 
   if (hasApiKey && apiKey) {
@@ -60,34 +62,42 @@ export async function sendSmsNotification(params: SMSParams): Promise<{ success:
           'x-api-key': apiKey,
         },
         body: JSON.stringify({
-          recipients: [params.to],
+          recipients: [phone],
           message: body,
+          ...(deviceId ? { deviceId } : {}),
         }),
       })
 
-      const data = await res.json()
+      const data: unknown = await res.json()
+      const response = data && typeof data === 'object' ? data as Record<string, unknown> : null
 
       if (!res.ok) {
-        console.warn('TextBee SMS delivery error:', data)
-        return { success: false, error: data.message || data.error || 'TextBee send failed', simulated: false }
+        console.warn('TextBee SMS request failed with status:', res.status)
+        const detail = typeof response?.message === 'string' ? response.message : 'TextBee request failed.'
+        return { success: false, error: detail }
       }
 
-      return { success: true, messageId: data.smsBatchId || `textbee_${Date.now()}`, simulated: false }
+      const result = response?.data && typeof response.data === 'object'
+        ? response.data as Record<string, unknown> : null
+      const queued = result?.success === true && typeof result.smsBatchId === 'string' && Boolean(result.smsBatchId)
+      const sentImmediately = result?.successCount === 1 && result.failureCount === 0
+      if (!queued && !sentImmediately) {
+        console.warn('TextBee returned an invalid send response.')
+        return { success: false, error: 'TextBee did not confirm the SMS request.' }
+      }
+
+      const warning = result?.warning && typeof result.warning === 'object'
+        ? result.warning as Record<string, unknown> : null
+      return {
+        success: true,
+        messageId: typeof result?.smsBatchId === 'string' ? result.smsBatchId : undefined,
+        warning: typeof warning?.message === 'string' ? warning.message : undefined,
+      }
     } catch (err: unknown) {
       console.warn('TextBee fetch exception:', err)
-      return { success: false, error: err instanceof Error ? err.message : 'TextBee request failed', simulated: false }
+      return { success: false, error: 'TextBee request failed. Check the server logs.' }
     }
   }
 
-  if (process.env.NODE_ENV === 'production') {
-    return { success: false, error: 'TEXTBEE_API_KEY is not configured.' }
-  }
-
-  // Graceful simulation / dev mode logging
-  console.log(`[SMS Automation] -> Sent to ${params.to || 'patient phone'}: "${body}"`)
-  return {
-    success: true,
-    messageId: `sim_sms_${Date.now()}`,
-    simulated: true,
-  }
+  return { success: false, error: 'TEXTBEE_API_KEY is not configured.' }
 }
