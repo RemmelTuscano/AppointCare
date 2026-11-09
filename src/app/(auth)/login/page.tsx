@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, ShieldCheck, Stethoscope, User, Mail, Lock, Globe } from 'lucide-react'
+import { ArrowLeft, ShieldCheck, Stethoscope, User, Mail, Lock, Globe, Eye, EyeOff } from 'lucide-react'
 
 type LoginRole = 'patient' | 'clinic' | 'admin'
 
@@ -166,6 +166,8 @@ type LoginFormProps = {
 }
 
 function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword, loading, error, onSubmit, onGoogleLogin }: LoginFormProps) {
+  const [showPassword, setShowPassword] = useState(false)
+
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {error && <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
@@ -212,14 +214,23 @@ function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword,
           <Lock className="absolute left-3 top-3 h-4 w-4 text-[#587269]" />
           <Input
             id="password"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="pl-10"
+            className="pl-10 pr-10"
             autoComplete="current-password"
             required
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword((visible) => !visible)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-pressed={showPassword}
+            className="absolute inset-y-0 right-0 flex items-center px-3 text-[#587269] transition hover:text-[#174c40] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#4f9a6d]"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 

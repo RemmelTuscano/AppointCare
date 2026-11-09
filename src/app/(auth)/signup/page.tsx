@@ -50,28 +50,39 @@ export default function SignupPage({ onSwitchToLogin }: { onSwitchToLogin?: () =
       return
     }
 
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: formData.email,
-      password: formData.password,
-      options: {
-        data: {
-          role,
-          full_name: role === 'clinic' ? formData.clinicName : formData.username,
-          location: formData.location,
-          phone: formData.phone,
-          ...(role === 'clinic' ? { clinic_name: formData.clinicName } : {}),
+    try {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            role,
+            full_name: role === 'clinic' ? formData.clinicName : formData.username,
+            location: formData.location,
+            phone: formData.phone,
+            ...(role === 'clinic' ? { clinic_name: formData.clinicName } : {}),
+          },
+          emailRedirectTo: `${getSiteUrl()}/auth/callback`,
         },
-        emailRedirectTo: `${getSiteUrl()}/auth/callback`,
-      },
-    })
+      })
 
-    if (signUpError) {
-      setError(signUpError.message)
+      if (signUpError) {
+        setError(signUpError.message)
+        return
+      }
+
+      router.push('/login?message=Check your email to confirm your account')
+    } catch (signupError) {
+      console.error('Signup request failed:', signupError)
+      const message = signupError instanceof Error ? signupError.message : ''
+      setError(
+        /failed to fetch|network|fetch failed/i.test(message)
+          ? 'Could not connect to the signup service. Check your internet connection and Supabase project settings, then try again.'
+          : message || 'We could not create your account. Please try again.'
+      )
+    } finally {
       setLoading(false)
-      return
     }
-
-    router.push('/login?message=Check your email to confirm your account')
   }
 
   return (
