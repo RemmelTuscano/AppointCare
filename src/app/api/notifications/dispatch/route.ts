@@ -1,62 +1,101 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { dispatchAutomatedNotifications, type NotificationPayload } from '@/lib/notifications'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
+import { dispatchAutomatedNotifications } from '@/lib/notifications'
+
+type Person = { full_name: string | null; email: string | null; phone: string | null }
+type Clinic = { user_id: string; name: string; address: string; phone: string | null }
+type Doctor = { name: string; specialization: string | null; is_available: boolean } | null
+type DispatchType = 'created' | 'confirmed' | 'cancelled' | 'doctor_unavailable'
+type Appointment = {
+  id: string
+  patient_id: string
+  scheduled_at: string
+  status: string
+  notes: string | null
+  patient: Person | null
+  clinic: Clinic | null
+  doctor: Doctor
+}
+
+function isDispatchType(value: unknown): value is DispatchType {
+  return value === 'created' || value === 'confirmed' || value === 'cancelled' || value === 'doctor_unavailable'
+}
 
 export async function POST(request: Request) {
+  const sessionClient = await createClient()
+  if (!sessionClient) return NextResponse.json({ error: 'Authentication is not configured.' }, { status: 500 })
+  const { data: { user }, error: authError } = await sessionClient.auth.getUser()
+  if (authError || !user) return NextResponse.json({ error: 'You must be signed in.' }, { status: 401 })
+
+  let body: { appointmentId?: unknown; type?: unknown }
   try {
-    const body: NotificationPayload = await request.json()
-
-    if (!body.appointmentId || !body.type) {
-      return NextResponse.json(
-        { error: 'appointmentId and type are required' },
-        { status: 400 }
-      )
-    }
-
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    // Client queries may be blocked by RLS and omit patient contact details.
-    if (body.patientUserId && url && serviceRoleKey && (!body.patientEmail || !body.patientPhone)) {
-      const lookup = createClient(url, serviceRoleKey)
-      const { data: patient } = await lookup.from('profiles').select('email, phone, full_name').eq('id', body.patientUserId).maybeSingle()
-      body.patientEmail = body.patientEmail || patient?.email
-      body.patientPhone = body.patientPhone || patient?.phone
-      body.patientName = body.patientName || patient?.full_name
-    }
-
-    const result = await dispatchAutomatedNotifications(body)
-
-    // Also persist in-app notifications to database if Supabase credentials available
-
-    if (url && serviceRoleKey && result.inAppNotifications.length > 0) {
-      const supabase = createClient(url, serviceRoleKey)
-      for (const item of result.inAppNotifications) {
-        await supabase.from('notifications').insert({
-          user_id: item.userId,
-          type: 'in_app',
-          title: item.title,
-          message: item.message,
-          metadata: {
-            appointment_id: body.appointmentId,
-            schedule_id: result.scheduleId,
-            event: body.type,
-          },
-        })
-      }
-    }
-
-    return NextResponse.json({
-      success: true,
-      scheduleId: result.scheduleId,
-      email: result.email,
-      sms: result.sms,
-    })
-  } catch (error) {
-    console.error('Dispatch notification error:', error)
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to dispatch notification' },
-      { status: 500 }
-    )
+    const parsed: unknown = await request.json()
+    if (!parsed || typeof parsed !== 'object') return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+    body = parsed
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
+  if (typeof body.appointmentId !== 'string' || !isDispatchType(body.type)) {
+    return NextResponse.json({ error: 'Invalid appointment or notification type.' }, { status: 400 })
+  }
+
+  const admin = createAdminClient()
+  if (!admin) return NextResponse.json({ error: 'Database service is not configured.' }, { status: 500 })
+  const { data: appointment, error } = await admin.from('appointments')
+    .select('id, patient_id, scheduled_at, status, notes, patient:profiles(full_name, email, phone), clinic:clinics(user_id, name, address, phone), doctor:doctors(name, specialization, is_available)')
+    .eq('id', body.appointmentId).maybeSingle().overrideTypes<Appointment, { merge: false }>()
+  if (error) {
+    console.error('Notification appointment lookup failed:', error.message)
+    return NextResponse.json({ error: 'Unable to load appointment.' }, { status: 500 })
+  }
+  if (!appointment) return NextResponse.json({ error: 'Appointment not found.' }, { status: 404 })
+
+  const { patient, clinic, doctor } = appointment
+  const type = body.type
+  const permitted = type === 'created'
+    ? appointment.patient_id === user.id && appointment.status === 'pending'
+    : clinic?.user_id === user.id && (
+      (type === 'confirmed' && appointment.status === 'confirmed') ||
+      (type === 'cancelled' && appointment.status === 'cancelled') ||
+      (type === 'doctor_unavailable' && doctor?.is_available === false &&
+        ['pending', 'confirmed'].includes(appointment.status))
+    )
+  if (!permitted || !clinic) return NextResponse.json({ error: 'You cannot send this notification.' }, { status: 403 })
+
+  const result = await dispatchAutomatedNotifications({
+    type,
+    appointmentId: appointment.id,
+    patientUserId: appointment.patient_id,
+    patientEmail: patient?.email,
+    patientPhone: patient?.phone,
+    patientName: patient?.full_name,
+    clinicUserId: clinic.user_id,
+    clinicName: clinic.name,
+    clinicAddress: clinic.address,
+    clinicPhone: clinic.phone,
+    doctorName: doctor?.name,
+    doctorSpecialization: doctor?.specialization,
+    scheduledAt: appointment.scheduled_at,
+    notes: appointment.notes,
+    reason: type === 'cancelled' ? 'Clinic could not accommodate this booking request.' : undefined,
+  })
+
+  if (result.inAppNotifications.length) {
+    const { error: insertError } = await admin.from('notifications').insert(
+      result.inAppNotifications.map((item) => ({
+        user_id: item.userId,
+        type: 'in_app',
+        title: item.title,
+        message: item.message,
+        metadata: { appointment_id: appointment.id, schedule_id: result.scheduleId, event: type },
+      }))
+    )
+    if (insertError) {
+      console.error('Failed to store in-app notifications:', insertError.message)
+      return NextResponse.json({ error: 'Notification delivery could not be completed.' }, { status: 500 })
+    }
+  }
+
+  return NextResponse.json({ success: true, scheduleId: result.scheduleId, email: result.email, sms: result.sms })
 }

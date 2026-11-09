@@ -13,8 +13,7 @@ export async function GET() {
   const { data: { user } } = await sessionClient.auth.getUser()
   if (!user) return NextResponse.json({ error: 'You must be signed in.' }, { status: 401 })
 
-  const { data: profile } = await sessionClient.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') return NextResponse.json({ error: 'Only administrators can create backups.' }, { status: 403 })
+  if (user.app_metadata.role !== 'admin') return NextResponse.json({ error: 'Only administrators can create backups.' }, { status: 403 })
 
   const admin = createAdminClient()
   if (!admin) return NextResponse.json({ error: 'Database service is not configured.' }, { status: 500 })

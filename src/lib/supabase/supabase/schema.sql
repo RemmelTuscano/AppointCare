@@ -76,10 +76,22 @@ create policy "Users can view own profile"
   on profiles for select using (auth.uid() = id);
 
 create policy "Users can update own profile"
-  on profiles for update using (auth.uid() = id) with check (auth.uid() = id);
+  on profiles for update
+  using (auth.uid() = id)
+  with check (
+    auth.uid() = id
+    and role = (
+      select current_profile.role
+      from profiles as current_profile
+      where current_profile.id = auth.uid()
+    )
+  );
 
 create policy "Users can insert own profile"
-  on profiles for insert with check (auth.uid() = id or auth.uid() is null);
+  on profiles for insert with check (
+    auth.uid() = id
+    and role in ('patient', 'clinic')
+  );
 
 -- Clinics: public read, owner manage
 create policy "Clinics are viewable by everyone"
@@ -192,7 +204,10 @@ as $$
 declare
   selected_role user_role;
 begin
-  selected_role := coalesce((new.raw_user_meta_data->>'role')::user_role, 'patient');
+  selected_role := case
+    when new.raw_user_meta_data->>'role' = 'clinic' then 'clinic'::user_role
+    else 'patient'::user_role
+  end;
 
   insert into profiles (id, role, email, full_name, location, phone)
   values (
@@ -220,6 +235,33 @@ begin
   return new;
 end;
 $$;
+
+create or replace function public.prevent_profile_role_escalation()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.role = 'admin'
+      and coalesce(auth.role(), '') <> 'service_role'
+      and coalesce(auth.jwt()->'app_metadata'->>'role', '') <> 'admin' then
+      new.role := 'patient';
+    end if;
+  elsif new.role is distinct from old.role
+    and coalesce(auth.role(), '') <> 'service_role'
+    and coalesce(auth.jwt()->'app_metadata'->>'role', '') <> 'admin' then
+    raise exception 'Profile roles can only be changed by trusted administrators';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger profiles_prevent_role_escalation
+  before insert or update of role on profiles
+  for each row execute function public.prevent_profile_role_escalation();
 
 create trigger on_auth_user_created
   after insert on auth.users

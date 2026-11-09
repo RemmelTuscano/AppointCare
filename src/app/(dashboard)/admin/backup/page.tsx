@@ -1,7 +1,9 @@
 import { CheckCircle2, DatabaseBackup, HardDrive } from 'lucide-react'
 import { AdminBackupActions, BackupDownloadButton } from '@/components/ui/admin-backup-actions'
+import { requireAdminClient } from '@/lib/supabase/admin-access'
 
-export default function AdminBackupPage() {
+export default async function AdminBackupPage() {
+  await requireAdminClient()
   return (
     <div className="space-y-7 pb-10">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">

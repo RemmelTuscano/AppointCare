@@ -1,6 +1,7 @@
 import { Check, Clock3, Eye, Search } from 'lucide-react'
 import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminClient } from '@/lib/supabase/admin-access'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -15,10 +16,9 @@ async function setClinicVerification(formData: FormData) {
   if (!sessionClient) return
 
   const { data: { user } } = await sessionClient.auth.getUser()
-  if (!user) return
-
-  const { data: profile } = await sessionClient.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') return
+  if (!user || user.app_metadata.role !== 'admin') {
+    throw new Error('Only administrators can change clinic verification.')
+  }
 
   const admin = createAdminClient()
   if (!admin) return
@@ -50,7 +50,7 @@ function formatDate(value: string) {
 }
 
 export default async function AdminClinicsPage() {
-  const admin = createAdminClient()
+  const admin = await requireAdminClient()
   const { data: clinicRows } = admin
     ? await admin.from('clinics').select('id, name, address, email, is_verified, created_at').order('created_at', { ascending: false })
     : { data: [] }

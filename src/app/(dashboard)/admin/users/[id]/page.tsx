@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import { ArrowLeft, Mail, ShieldCheck, UserRound } from 'lucide-react'
 import { notFound } from 'next/navigation'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminClient } from '@/lib/supabase/admin-access'
 
 export default async function AdminUserProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const admin = createAdminClient()
+  const admin = await requireAdminClient()
   if (!admin) notFound()
   const { data: profile } = await admin.from('profiles').select('id, full_name, email, role, phone, location').eq('id', id).single()
   if (!profile) notFound()

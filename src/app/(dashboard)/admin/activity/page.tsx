@@ -1,5 +1,5 @@
 import { Activity, Building2, CalendarDays, Clock3, ShieldCheck, UserRound } from 'lucide-react'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminClient } from '@/lib/supabase/admin-access'
 
 type ActivityRow = {
   id: string
@@ -22,7 +22,7 @@ function ActivityIcon({ entityType }: { entityType: string }) {
 }
 
 export default async function AdminActivityPage() {
-  const admin = createAdminClient()
+  const admin = await requireAdminClient()
   const { data: activityRows, error: activityError } = admin
     ? await admin.from('activity_logs').select('id, action, entity_type, summary, created_at, actor:profiles!activity_logs_actor_id_fkey(full_name, email)').order('created_at', { ascending: false }).limit(100)
     : { data: [], error: new Error('Admin database is not configured.') }

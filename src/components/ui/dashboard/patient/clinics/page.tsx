@@ -105,12 +105,6 @@ export default function PatientClinics() {
 
     const scheduledAt = applyTimeSlot(selectedDate, selectedTime)
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name, phone')
-      .eq('id', user.id)
-      .maybeSingle()
-
     const chosenDoctor = doctors.find((d) => d.id === selectedDoctor)
 
     let bookingResponse: Response
@@ -156,20 +150,11 @@ export default function PatientClinics() {
 
     const apt = bookingPayload.appointment
 
-    await supabase.from('activity_logs').insert({
-      actor_id: user.id,
-      action: 'appointment_requested',
-      entity_type: 'appointment',
-      entity_id: apt.id,
-      summary: `Appointment requested at ${selectedClinic.name}`,
-      metadata: { clinic: selectedClinic.name, doctor: chosenDoctor?.name, scheduledAt: apt.scheduled_at },
-    })
-
     let notificationFailed = false
     try {
       const notificationResponse = await fetch('/api/notifications/dispatch', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'created', appointmentId: apt.id, patientEmail: user.email, patientPhone: profile?.phone, patientName: profile?.full_name, patientUserId: user.id, clinicUserId: selectedClinic.user_id, clinicName: selectedClinic.name, clinicAddress: selectedClinic.address, doctorName: chosenDoctor?.name, doctorSpecialization: chosenDoctor?.specialization, scheduledAt: apt.scheduled_at, notes }),
+        body: JSON.stringify({ type: 'created', appointmentId: apt.id }),
       })
       notificationFailed = !notificationResponse.ok
     } catch {

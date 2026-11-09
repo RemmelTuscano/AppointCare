@@ -26,11 +26,49 @@ create policy "Users can view own profile"
 create policy "Users can update own profile"
   on public.profiles for update
   using (auth.uid() = id)
-  with check (auth.uid() = id);
+  with check (
+    auth.uid() = id
+    and role = (
+      select current_profile.role
+      from public.profiles as current_profile
+      where current_profile.id = auth.uid()
+    )
+  );
 
 create policy "Users can insert own profile"
   on public.profiles for insert
-  with check (auth.uid() = id);
+  with check (
+    auth.uid() = id
+    and role in ('patient', 'clinic')
+  );
+
+create or replace function public.prevent_profile_role_escalation()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.role = 'admin'
+      and coalesce(auth.role(), '') <> 'service_role'
+      and coalesce(auth.jwt()->'app_metadata'->>'role', '') <> 'admin' then
+      new.role := 'patient';
+    end if;
+  elsif new.role is distinct from old.role
+    and coalesce(auth.role(), '') <> 'service_role'
+    and coalesce(auth.jwt()->'app_metadata'->>'role', '') <> 'admin' then
+    raise exception 'Profile roles can only be changed by trusted administrators';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_prevent_role_escalation on public.profiles;
+create trigger profiles_prevent_role_escalation
+  before insert or update of role on public.profiles
+  for each row execute function public.prevent_profile_role_escalation();
 
 -- Keep the oldest clinic for each owner before enforcing one clinic per account.
 -- Existing appointments and doctors are preserved by moving them to that clinic.

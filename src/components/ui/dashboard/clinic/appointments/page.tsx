@@ -104,19 +104,9 @@ export default function ClinicAppointments() {
       // Fetch appointments via dedicated endpoint using server-side elevated access
       // to ensure patient names and profiles are always resolved properly
       const res = await fetch(`/api/clinic/appointments?clinicId=${clinic.id}`)
-      if (res.ok) {
-        const payload = await res.json()
-        setAppointments(sortAppointments(payload.appointments || []))
-      } else {
-        // Fallback to client supabase query if API is unreachable
-        const { data } = await supabase
-          .from('appointments')
-          .select('*, patient:profiles(id, full_name, email, phone), doctor:doctors(id, name, specialization, is_available), clinic:clinics(id, name, address)')
-          .eq('clinic_id', clinic.id)
-          .order('scheduled_at', { ascending: false })
-
-        setAppointments(sortAppointments(data || []))
-      }
+      const payload = await res.json()
+      if (!res.ok) throw new Error(payload.error || 'Failed to load appointments.')
+      setAppointments(sortAppointments(payload.appointments || []))
 
       // Also fetch clinic doctors for reassignments
       const { data: docs } = await supabase
@@ -124,6 +114,13 @@ export default function ClinicAppointments() {
         .select('id, name, specialization, is_available')
         .eq('clinic_id', clinic.id)
       setClinicDoctors(docs || [])
+    } catch (error) {
+      setAppointments([])
+      setActionResult({
+        type: 'error',
+        title: 'Appointments could not be loaded',
+        message: error instanceof Error ? error.message : 'Failed to load appointments.',
+      })
     } finally {
       setLoading(false)
     }
@@ -165,16 +162,6 @@ export default function ClinicAppointments() {
       .single()
 
     if (apt && !error) {
-      const { data: { user: actor } } = await supabase.auth.getUser()
-      await supabase.from('activity_logs').insert({
-        actor_id: actor?.id,
-        action: status === 'confirmed' ? 'appointment_confirmed' : 'appointment_cancelled',
-        entity_type: 'appointment',
-        entity_id: id,
-        summary: `Appointment ${status} for ${apt.patient?.full_name || 'patient'}`,
-        metadata: { scheduleId, clinic: apt.clinic?.name, doctor: apt.doctor?.name },
-      })
-
       setAppointments((current) => sortAppointments(current.map((appointment) => (
         appointment.id === id ? { ...appointment, status } : appointment
       ))))
@@ -187,16 +174,6 @@ export default function ClinicAppointments() {
           body: JSON.stringify({
             type: status === 'confirmed' ? 'confirmed' : 'cancelled',
             appointmentId: id,
-            patientEmail: apt.patient?.email,
-            patientPhone: apt.patient?.phone,
-            patientName: apt.patient?.full_name,
-            patientUserId: apt.patient_id,
-            clinicName: apt.clinic?.name,
-            clinicAddress: apt.clinic?.address,
-            doctorName: apt.doctor?.name,
-            doctorSpecialization: apt.doctor?.specialization,
-            scheduledAt: apt.scheduled_at,
-            reason: status === 'cancelled' ? 'Clinic could not accommodate this booking request.' : undefined,
           }),
         })
         const result = await response.json()
@@ -318,16 +295,7 @@ export default function ClinicAppointments() {
       .single()
 
     if (apt && !error) {
-      const { data: { user: actor } } = await supabase.auth.getUser()
       const scheduleId = formatScheduleId(id)
-      await supabase.from('activity_logs').insert({
-        actor_id: actor?.id,
-        action: 'appointment_completed',
-        entity_type: 'appointment',
-        entity_id: id,
-        summary: `Appointment completed for ${apt.patient?.full_name || 'patient'}`,
-        metadata: { scheduleId, clinic: apt.clinic?.name, doctor: apt.doctor?.name },
-      })
       setAppointments((current) => current.map((appointment) => (
         appointment.id === id ? { ...appointment, status: 'completed' } : appointment
       )))

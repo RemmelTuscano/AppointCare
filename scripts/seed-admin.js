@@ -43,6 +43,7 @@ async function seedAdmin() {
       phone,
       email_confirm: true,
       user_metadata: { role: 'admin', full_name: 'AppointCare Admin', phone },
+      app_metadata: { role: 'admin' },
     })
 
     const userAlreadyExists = authError?.message.toLowerCase().includes('already exists')
@@ -51,6 +52,11 @@ async function seedAdmin() {
 
     const authUser = createdUser?.user || await findUserByEmail(email)
     if (!authUser) throw new Error(`Could not find admin account: ${email}`)
+
+    const { error: metadataError } = await supabase.auth.admin.updateUserById(authUser.id, {
+      app_metadata: { ...authUser.app_metadata, role: 'admin' },
+    })
+    if (metadataError) throw metadataError
 
     const { error: profileError } = await supabase.from('profiles').upsert({
       id: authUser.id,

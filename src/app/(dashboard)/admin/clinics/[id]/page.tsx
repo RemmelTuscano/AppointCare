@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import { ArrowLeft, BadgeCheck, Building2, CalendarDays, Check, Clock3, ExternalLink, FileText, Mail, MapPin, Phone, UsersRound } from 'lucide-react'
 import { notFound } from 'next/navigation'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminClient } from '@/lib/supabase/admin-access'
+import { isClinicPermitPath } from '@/lib/supabase/permit-path'
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(new Date(value))
@@ -9,15 +10,19 @@ function formatDate(value: string) {
 
 export default async function AdminClinicDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const admin = createAdminClient()
+  const admin = await requireAdminClient()
   if (!admin) notFound()
 
   const { data: clinic, error: clinicError } = await admin.from('clinics').select('id, user_id, name, address, phone, email, description, is_verified, created_at, permit_url').eq('id', id).single()
   if (clinicError || !clinic) notFound()
 
-  const permitPublicUrl = clinic.permit_url
-    ? admin.storage.from('clinic_permits').getPublicUrl(clinic.permit_url).data?.publicUrl
-    : null
+  const { data: signedPermit, error: signedPermitError } = clinic.permit_url && isClinicPermitPath(clinic.permit_url, clinic.id)
+    ? await admin.storage.from('clinic_permits').createSignedUrl(clinic.permit_url, 15 * 60)
+    : { data: null, error: null }
+  if (signedPermitError || (clinic.permit_url && !isClinicPermitPath(clinic.permit_url, clinic.id))) {
+    console.error('Unable to access clinic permit:', signedPermitError?.message || 'Invalid clinic permit path.')
+  }
+  const permitSignedUrl = signedPermit?.signedUrl || null
 
   const [{ data: owner }, { data: doctors }, { count: appointmentCount }] = await Promise.all([
     admin.from('profiles').select('full_name, email, phone, location, created_at').eq('id', clinic.user_id).single(),
@@ -43,11 +48,11 @@ export default async function AdminClinicDetailsPage({ params }: { params: Promi
               Verification permit
             </h2>
             <div className="mt-5">
-              {permitPublicUrl ? (
+              {permitSignedUrl ? (
                 <div className="space-y-3">
                   {clinic.permit_url?.endsWith('.pdf') ? (
                     <a
-                      href={permitPublicUrl}
+                      href={permitSignedUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-sm text-emerald-700 hover:text-emerald-900"
@@ -57,10 +62,10 @@ export default async function AdminClinicDetailsPage({ params }: { params: Promi
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   ) : (
-                    <a href={permitPublicUrl} target="_blank" rel="noopener noreferrer">
+                    <a href={permitSignedUrl} target="_blank" rel="noopener noreferrer">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={permitPublicUrl}
+                        src={permitSignedUrl}
                         alt="Clinic permit"
                         className="max-h-64 w-full max-w-md rounded-md border border-emerald-100 object-contain"
                       />

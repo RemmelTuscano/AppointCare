@@ -1,9 +1,9 @@
 import { Mail, Search, ShieldCheck, UserRound } from 'lucide-react'
 import Link from 'next/link'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminClient } from '@/lib/supabase/admin-access'
 
 export default async function AdminUsersPage() {
-  const admin = createAdminClient()
+  const admin = await requireAdminClient()
   const { data: userRows } = admin
     ? await admin.from('profiles').select('id, full_name, email, role, phone, created_at').order('created_at', { ascending: false })
     : { data: [] }

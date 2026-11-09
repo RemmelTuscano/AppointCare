@@ -39,6 +39,51 @@ http://192.168.118.192:3000/auth/callback
 
 When testing from another device on this network, set the **Site URL** to `http://192.168.118.192:3000`. Do not use `http://0.0.0.0:3000` as a Site URL; it is a server bind address and browsers cannot navigate to it. The Google provider redirect URI remains the Supabase callback URL shown in the provider configuration.
 
+## Administrator access
+
+Administrator pages, clinic verification, and backups require the authenticated user's
+Supabase Auth **app metadata** to contain `"role": "admin"`. The profile role and user
+metadata are not sufficient because users can modify them. Existing administrators must
+be explicitly provisioned by a trusted operator using the Supabase Auth Admin API; merge
+`role: 'admin'` into their existing `app_metadata` with `updateUserById`. Never grant this
+role using a browser client. The development `scripts/seed-admin.js` script provisions its
+demo administrator accordingly.
+
+For an existing administrator, a trusted operator can run the following in the Supabase SQL
+Editor after verifying the account's UUID. Preserve the existing metadata and replace the
+placeholder with that UUID:
+
+```sql
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"role":"admin"}'::jsonb
+where id = 'REPLACE-WITH-VERIFIED-USER-UUID'::uuid;
+```
+
+Do not grant administrator access automatically based on `profiles.role` or user metadata.
+
+## Required Supabase security migrations
+
+Before deploying the application changes, run `scripts/activity-log.sql` and
+`scripts/clinic-permits.sql` in the Supabase SQL Editor for each environment. These
+migrations restrict profile role changes and activity-log access, and make the permit bucket
+private with clinic-scoped access. Existing public permit links will stop working; the app
+uses short-lived signed links instead. Review the deployed database's other policies and grants
+as well, since these scripts cannot remove unrelated policies created outside this repository.
+Never apply the demo repair script to production.
+
+## Appointment notifications
+
+The app sends appointment notifications from server-verified appointment and recipient data.
+The old direct email and SMS endpoints return HTTP 410; they must not be used to send arbitrary
+messages. The dispatch endpoint accepts only an appointment ID and event type and verifies the
+signed-in patient or clinic owner and the appointment state.
+
+To run reminders, set `REMINDER_CRON_SECRET` to a randomly generated secret of at least 32
+characters in the server environment. Configure a trusted scheduler to send a POST request to
+`/api/notifications/reminders` with `Authorization: Bearer <secret>`. The endpoint is disabled
+when the secret is missing or too short. Protect the secret like a password and never put it in
+client-side code. The response contains only aggregate counts, not patient details.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

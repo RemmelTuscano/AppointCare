@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { ArrowUpRight, CheckCircle2, DatabaseBackup, ShieldCheck, Stethoscope, UsersRound } from 'lucide-react'
-import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAdminClient } from '@/lib/supabase/admin-access'
 
 type ClinicSummary = { id: string; name: string; address: string; is_verified: boolean; created_at: string }
 
@@ -9,7 +9,7 @@ function formatDate(value: string) {
 }
 
 export default async function AdminDashboardPage() {
-  const admin = createAdminClient()
+  const admin = await requireAdminClient()
   let clinics: ClinicSummary[] = []
   let userCount = 0
 

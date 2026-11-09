@@ -17,11 +17,67 @@ alter table activity_logs enable row level security;
 
 drop policy if exists "Admins can view activity logs" on activity_logs;
 create policy "Admins can view activity logs" on activity_logs for select using (
-  exists (select 1 from profiles where profiles.id = auth.uid() and profiles.role = 'admin')
+  auth.jwt()->'app_metadata'->>'role' = 'admin'
 );
 
+drop policy if exists "Enforce admin-only activity log access" on activity_logs;
+create policy "Enforce admin-only activity log access" on activity_logs
+  as restrictive for select using (
+    coalesce(auth.jwt()->'app_metadata'->>'role' = 'admin', false)
+  );
+
 drop policy if exists "Authenticated users can record activity" on activity_logs;
-create policy "Authenticated users can record activity" on activity_logs for insert with check (auth.uid() = actor_id);
+revoke insert on table activity_logs from public, anon, authenticated;
+grant insert on table activity_logs to service_role;
+
+drop policy if exists "Users can update own profile" on public.profiles;
+create policy "Users can update own profile"
+  on public.profiles for update
+  using (auth.uid() = id)
+  with check (
+    auth.uid() = id
+    and role = (
+      select current_profile.role
+      from public.profiles as current_profile
+      where current_profile.id = auth.uid()
+    )
+  );
+
+drop policy if exists "Users can insert own profile" on public.profiles;
+create policy "Users can insert own profile"
+  on public.profiles for insert
+  with check (
+    auth.uid() = id
+    and role in ('patient', 'clinic')
+  );
+
+create or replace function public.prevent_profile_role_escalation()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.role = 'admin'
+      and coalesce(auth.role(), '') <> 'service_role'
+      and coalesce(auth.jwt()->'app_metadata'->>'role', '') <> 'admin' then
+      new.role := 'patient';
+    end if;
+  elsif new.role is distinct from old.role
+    and coalesce(auth.role(), '') <> 'service_role'
+    and coalesce(auth.jwt()->'app_metadata'->>'role', '') <> 'admin' then
+    raise exception 'Profile roles can only be changed by trusted administrators';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_prevent_role_escalation on public.profiles;
+create trigger profiles_prevent_role_escalation
+  before insert or update of role on public.profiles
+  for each row execute function public.prevent_profile_role_escalation();
 
 create or replace function log_activity()
 returns trigger

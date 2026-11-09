@@ -1,16 +1,25 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createHash, timingSafeEqual } from 'node:crypto'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { dispatchAutomatedNotifications } from '@/lib/notifications'
 
-export async function POST() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!url || !serviceRoleKey) {
-    return NextResponse.json({ error: 'Database is not configured for automated reminders.' }, { status: 500 })
+export async function POST(request: Request) {
+  const secret = process.env.REMINDER_CRON_SECRET
+  if (!secret || secret.length < 32) {
+    console.error('REMINDER_CRON_SECRET must be configured with at least 32 characters.')
+    return NextResponse.json({ error: 'Reminder service is not configured.' }, { status: 500 })
+  }
+  const authorization = request.headers.get('authorization') || ''
+  const expected = createHash('sha256').update(`Bearer ${secret}`).digest()
+  const received = createHash('sha256').update(authorization).digest()
+  if (!timingSafeEqual(expected, received)) {
+    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
   }
 
-  const supabase = createClient(url, serviceRoleKey)
+  const supabase = createAdminClient()
+  if (!supabase) {
+    return NextResponse.json({ error: 'Database is not configured for automated reminders.' }, { status: 500 })
+  }
 
   // Find upcoming confirmed appointments between now and next 48 hours
   const now = new Date()
@@ -34,17 +43,19 @@ export async function POST() {
     .lte('scheduled_at', in48Hours.toISOString())
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('Reminder appointment lookup failed:', error.message)
+    return NextResponse.json({ error: 'Unable to load appointments for reminders.' }, { status: 500 })
   }
 
-  const results: any[] = []
+  let count = 0
+  let failures = 0
 
   for (const apt of (appointments || [])) {
-    const patientData = apt.patient as any
-    const clinicData = apt.clinic as any
-    const doctorData = apt.doctor as any
+    const patientData = apt.patient as { email?: string | null; phone?: string | null; full_name?: string | null } | null
+    const clinicData = apt.clinic as { name?: string | null; address?: string | null } | null
+    const doctorData = apt.doctor as { name?: string | null } | null
 
-    const dispatchResult = await dispatchAutomatedNotifications({
+    const result = await dispatchAutomatedNotifications({
       type: 'reminder',
       appointmentId: apt.id,
       patientEmail: patientData?.email,
@@ -56,19 +67,13 @@ export async function POST() {
       doctorName: doctorData?.name,
       scheduledAt: apt.scheduled_at,
     })
-
-    results.push({
-      appointmentId: apt.id,
-      scheduleId: dispatchResult.scheduleId,
-      patient: patientData?.email,
-      emailSent: dispatchResult.email.sent,
-      smsSent: dispatchResult.sms.sent,
-    })
+    count++
+    if ((!result.email.sent && !result.email.skipped) || (!result.sms.sent && !result.sms.skipped)) failures++
   }
 
   return NextResponse.json({
-    success: true,
-    count: results.length,
-    reminders: results,
-  })
+    success: failures === 0,
+    count,
+    failures,
+  }, { status: failures ? 207 : 200, headers: { 'Cache-Control': 'private, no-store' } })
 }

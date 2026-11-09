@@ -34,7 +34,21 @@ export default function ClinicAccountPage() {
   const [permitUploading, setPermitUploading] = useState(false)
   const [permitMessage, setPermitMessage] = useState<string | null>(null)
   const [selectedPermitFile, setSelectedPermitFile] = useState<File | null>(null)
+  const [permitSignedUrl, setPermitSignedUrl] = useState<string | null>(null)
   const supabase = createClient()
+
+  const refreshPermitSignedUrl = async (path: string | null) => {
+    if (!path) {
+      setPermitSignedUrl(null)
+      return false
+    }
+
+    const { data, error } = await supabase.storage
+      .from('clinic_permits')
+      .createSignedUrl(path, 15 * 60)
+    setPermitSignedUrl(error ? null : data?.signedUrl || null)
+    return !error && Boolean(data?.signedUrl)
+  }
 
   const loadClinic = useEffectEvent(async () => {
     try {
@@ -44,7 +58,7 @@ export default function ClinicAccountPage() {
         return
       }
 
-      const { data, error } = await supabase
+          const { data, error } = await supabase
         .from('clinics')
         .select('id, name, address, phone, email, description, is_verified, daily_capacity, permit_url')
         .eq('user_id', user.id)
@@ -65,6 +79,7 @@ export default function ClinicAccountPage() {
       }
 
       setClinic(data)
+      await refreshPermitSignedUrl(data.permit_url)
       setForm({ name: data.name, address: data.address, phone: data.phone || '', email: data.email || '', description: data.description || '', dailyCapacity: String(data.daily_capacity) })
     } finally {
       setLoading(false)
@@ -87,15 +102,20 @@ const { data, error } = await supabase
       .select('id, name, address, phone, email, description, is_verified, daily_capacity, permit_url')
       .single()
 
-      if (error) {
-        if (error.code === '42703') {
-          setMessage('The clinic profile is missing a required column. Run scripts/clinic-permits.sql in the Supabase SQL Editor, then reload this page.')
-        } else {
-          setMessage('We could not save your clinic details. Please try again.')
-        }
-        setSaving(false)
-        return
+    if (error) {
+      if (error.code === '42703') {
+        setMessage('The clinic profile is missing a required column. Run scripts/clinic-permits.sql in the Supabase SQL Editor, then reload this page.')
+      } else {
+        setMessage('We could not save your clinic details. Please try again.')
       }
+      setSaving(false)
+      return
+    }
+
+    setClinic(data)
+    setEditing(false)
+    setMessage('Clinic details saved.')
+    setSaving(false)
   }
 
   const uploadPermit = async (file: File) => {
@@ -118,9 +138,10 @@ const { data, error } = await supabase
       }
 
       setClinic((current) => (current ? { ...current, permit_url: data.path } : null))
-      setPermitMessage(data.permitUrl
-        ? `Permit uploaded successfully. Your clinic is now under review.`
-        : `Permit uploaded successfully.`)
+      const signedUrlAvailable = await refreshPermitSignedUrl(data.path)
+      setPermitMessage(signedUrlAvailable
+        ? 'Permit uploaded successfully. Your clinic is now under review.'
+        : 'Permit uploaded successfully, but the document preview is unavailable.')
     } catch (error) {
       setPermitMessage(error instanceof Error ? error.message : 'Failed to upload permit.')
     } finally {
@@ -141,6 +162,7 @@ const { data, error } = await supabase
       }
 
       setClinic((current) => (current ? { ...current, permit_url: null } : null))
+      await refreshPermitSignedUrl(null)
       setPermitMessage('Permit removed successfully.')
     } catch (error) {
       setPermitMessage(error instanceof Error ? error.message : 'Failed to remove permit.')
@@ -148,14 +170,6 @@ const { data, error } = await supabase
       setPermitUploading(false)
     }
   }
-
-  const getPermitPublicUrl = (path: string | null | undefined) => {
-    if (!path) return null
-    const { data } = supabase.storage.from('clinic_permits').getPublicUrl(path)
-    return data.publicUrl
-  }
-
-  const permitPublicUrl = getPermitPublicUrl(clinic?.permit_url)
 
   if (loading) return <div className="py-12 text-center text-muted-foreground">Loading clinic profile...</div>
 
@@ -249,11 +263,11 @@ const { data, error } = await supabase
                  Accepted formats: JPG, PNG, GIF, PDF (max 5 MB).
                </p>
 
-               {permitPublicUrl ? (
+               {permitSignedUrl ? (
                  <div className="mt-3 space-y-3">
                    {clinic?.permit_url?.endsWith('.pdf') ? (
                      <a
-                       href={permitPublicUrl}
+                       href={permitSignedUrl}
                        target="_blank"
                        rel="noopener noreferrer"
                        className="flex items-center gap-2 text-sm text-emerald-700 hover:text-emerald-900"
@@ -264,13 +278,13 @@ const { data, error } = await supabase
                      </a>
                     ) : (
                       <a
-                        href={permitPublicUrl}
+                        href={permitSignedUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={permitPublicUrl}
+                          src={permitSignedUrl}
                           alt="Clinic permit"
                           className="max-h-48 w-full max-w-xs rounded-md border border-emerald-100 object-contain"
                         />

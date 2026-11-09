@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { dispatchAutomatedNotifications } from '@/lib/notifications'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { recordActivity } from '@/lib/activity'
@@ -24,30 +24,33 @@ type RelatedDoctor = {
 
 export async function POST(request: Request) {
   try {
-    const { appointmentId, newScheduledAt, newDoctorId, reason, initiatedBy } = await request.json()
+    const sessionClient = await createServerClient()
+    if (!sessionClient) return NextResponse.json({ error: 'Authentication is not configured.' }, { status: 500 })
+    const { data: { user: actor }, error: authError } = await sessionClient.auth.getUser()
+    if (authError || !actor) return NextResponse.json({ error: 'You must be signed in.' }, { status: 401 })
 
-    if (!appointmentId || !newScheduledAt) {
+    const { appointmentId, newScheduledAt, newDoctorId, reason } = await request.json()
+
+    if (typeof appointmentId !== 'string' || typeof newScheduledAt !== 'string' ||
+        (newDoctorId != null && typeof newDoctorId !== 'string') ||
+        (reason != null && typeof reason !== 'string')) {
       return NextResponse.json(
         { error: 'appointmentId and newScheduledAt are required.' },
         { status: 400 }
       )
     }
 
-    if (initiatedBy === 'patient') {
-      return NextResponse.json(
-        { error: 'Only clinic users can reschedule appointments. Please contact your clinic.' },
-        { status: 403 }
-      )
+    const scheduledDate = new Date(newScheduledAt)
+    if (Number.isNaN(scheduledDate.getTime())) return NextResponse.json({ error: 'Invalid appointment time.' }, { status: 400 })
+    const supabase = createAdminClient()
+    if (!supabase) return NextResponse.json({ error: 'Database service is not configured.' }, { status: 500 })
+    const { data: ownedClinic, error: clinicError } = await supabase
+      .from('clinics').select('id').eq('user_id', actor.id).maybeSingle()
+    if (clinicError) {
+      console.error('Unable to verify clinic ownership:', clinicError.message)
+      return NextResponse.json({ error: 'Unable to verify clinic access.' }, { status: 500 })
     }
-
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-    if (!url || !serviceRoleKey) {
-      return NextResponse.json({ error: 'Database service is not configured.' }, { status: 500 })
-    }
-
-    const supabase = createClient(url, serviceRoleKey)
+    if (!ownedClinic) return NextResponse.json({ error: 'Only clinic owners can reschedule appointments.' }, { status: 403 })
 
     // Fetch existing appointment details
     const { data: existingApt, error: fetchErr } = await supabase
@@ -65,6 +68,7 @@ export async function POST(request: Request) {
         doctor:doctors(id, name, specialization, is_available)
       `)
       .eq('id', appointmentId)
+      .eq('clinic_id', ownedClinic.id)
       .single()
 
     if (fetchErr || !existingApt) {
@@ -73,11 +77,18 @@ export async function POST(request: Request) {
 
     // Build update payload
     const updatePayload: Record<string, string> = {
-      scheduled_at: new Date(newScheduledAt).toISOString(),
+      scheduled_at: scheduledDate.toISOString(),
       status: 'confirmed',
     }
 
     if (newDoctorId) {
+      const { data: doctor, error: doctorError } = await supabase.from('doctors')
+        .select('id, is_available').eq('id', newDoctorId).eq('clinic_id', ownedClinic.id).maybeSingle()
+      if (doctorError) {
+        console.error('Unable to verify doctor:', doctorError.message)
+        return NextResponse.json({ error: 'Unable to verify doctor.' }, { status: 500 })
+      }
+      if (!doctor?.is_available) return NextResponse.json({ error: 'Doctor is unavailable at this clinic.' }, { status: 400 })
       updatePayload.doctor_id = newDoctorId
     }
 
@@ -89,6 +100,7 @@ export async function POST(request: Request) {
       .from('appointments')
       .update(updatePayload)
       .eq('id', appointmentId)
+      .eq('clinic_id', ownedClinic.id)
       .select(`
         id,
         patient_id,
@@ -110,11 +122,8 @@ export async function POST(request: Request) {
     const patientData = updatedApt.patient as RelatedPerson
     const clinicData = updatedApt.clinic as RelatedClinic
     const doctorData = updatedApt.doctor as RelatedDoctor
-    const sessionClient = await createServerClient()
-    const { data: { user: actor } } = sessionClient ? await sessionClient.auth.getUser() : { data: { user: null } }
-
     await recordActivity({
-      actorId: actor?.id,
+      actorId: actor.id,
       action: 'appointment_rescheduled',
       entityType: 'appointment',
       entityId: updatedApt.id,
@@ -169,8 +178,9 @@ export async function POST(request: Request) {
       notifications: notificationResult,
     })
   } catch (err) {
+    console.error('Rescheduling failed:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Rescheduling failed' },
+      { error: 'Rescheduling failed.' },
       { status: 500 }
     )
   }

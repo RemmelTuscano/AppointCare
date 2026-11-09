@@ -70,17 +70,7 @@ export default function ClinicDoctors() {
         setMessage('We could not load your clinic profile. Please try again.')
         return
       }
-      let clinic = ownedClinic
-
-      if (!clinic) {
-        const { data: doctorRecord } = await supabase
-          .from('doctors')
-          .select('clinic:clinics(id, name, address)')
-          .limit(1)
-          .maybeSingle()
-
-        clinic = (doctorRecord?.clinic as RegisteredClinic | null) || null
-      }
+      const clinic = ownedClinic
 
       if (!clinic) {
         setMessage('No clinic profile is linked to this account yet.')
@@ -224,26 +214,15 @@ export default function ClinicDoctors() {
         if (affectedApts && affectedApts.length > 0) {
           let notifiedCount = 0
           for (const apt of affectedApts) {
-            const patientData = apt.patient as { id?: string; full_name?: string | null; email?: string | null; phone?: string | null } | null
-            const clinicData = apt.clinic as { name?: string | null; address?: string | null } | null
-
-            await fetch('/api/notifications/dispatch', {
+            const response = await fetch('/api/notifications/dispatch', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 type: 'doctor_unavailable',
                 appointmentId: apt.id,
-                patientEmail: patientData?.email,
-                patientPhone: patientData?.phone,
-                patientName: patientData?.full_name,
-                patientUserId: patientData?.id,
-                clinicName: clinicData?.name || clinic?.name,
-                clinicAddress: clinicData?.address || clinic?.address,
-                doctorName: targetDoctor.name,
-                scheduledAt: apt.scheduled_at,
-                rescheduleUrl: '/patient/appointments',
               }),
             })
+            if (!response.ok) throw new Error('Patient alert could not be dispatched.')
             notifiedCount++
           }
 
@@ -253,6 +232,9 @@ export default function ClinicDoctors() {
         }
       } catch (err) {
         console.warn('Could not complete automated patient alerts:', err)
+        setMessage(`Dr. ${targetDoctor.name} was marked unavailable, but some patient alerts could not be sent. Please check the appointments.`)
+        setUpdatingDoctorId(null)
+        return
       }
       setMessage(`Dr. ${targetDoctor.name} marked unavailable. No active upcoming appointments were affected.`)
     } else {
