@@ -127,29 +127,32 @@ begin
     else 'patient'::public.user_role
   end;
 
-  insert into public.profiles (id, role, email, full_name, location)
+  insert into public.profiles (id, role, email, full_name, location, phone)
   values (
     new.id,
     selected_role,
     new.email,
     coalesce(new.raw_user_meta_data->>'full_name', new.email),
-    new.raw_user_meta_data->>'location'
+    new.raw_user_meta_data->>'location',
+    new.raw_user_meta_data->>'phone'
   )
   on conflict (id) do nothing;
 
   if selected_role = 'clinic' then
-    insert into public.clinics (user_id, name, address, email)
+    insert into public.clinics (user_id, name, address, email, phone)
     values (
       new.id,
       coalesce(new.raw_user_meta_data->>'clinic_name', new.raw_user_meta_data->>'full_name', 'New clinic'),
       coalesce(new.raw_user_meta_data->>'location', 'Address pending'),
-      new.email
+      new.email,
+      new.raw_user_meta_data->>'phone'
     )
     on conflict (user_id) do update
     set
       name = excluded.name,
       address = excluded.address,
-      email = excluded.email
+      email = excluded.email,
+      phone = excluded.phone
     returning id into registered_clinic_id;
 
     insert into public.clinic_accounts (user_id, clinic_id)

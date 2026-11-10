@@ -93,6 +93,12 @@ interpreted by the sending SIM's carrier. Patients can enable or disable email a
 account preferences. Missing credentials and provider failures are reported rather than
 simulated. A provider accepting a request does not guarantee delivery.
 
+Patient and clinic signup accept Philippine mobile numbers in `09XXXXXXXXX` or
+`+639XXXXXXXXX` format and store them as `+639XXXXXXXXX`. Existing account numbers are not
+changed automatically. If your Supabase project uses the signup trigger from
+`scripts/separate-patient-clinic-accounts.sql`, update that deployed trigger to the revised
+`handle_new_user` definition in the script so it also copies phone numbers to profiles and clinics.
+
 For an end-to-end check, use a test patient with contact details you control, enable the desired
 notification channels, and create or update an appointment in the app. Check the displayed
 channel status and the provider dashboards; this sends real messages and may incur charges.

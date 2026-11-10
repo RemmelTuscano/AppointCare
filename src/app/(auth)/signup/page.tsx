@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getSiteUrl } from '@/lib/utils'
+import { normalizePhilippineMobileNumber } from '@/lib/phone'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -50,6 +51,13 @@ export default function SignupPage({ onSwitchToLogin }: { onSwitchToLogin?: () =
       return
     }
 
+    const phone = normalizePhilippineMobileNumber(formData.phone)
+    if (!phone) {
+      setError('Enter a Philippine mobile number in the format 09XXXXXXXXX or +639XXXXXXXXX.')
+      setLoading(false)
+      return
+    }
+
     try {
       const { error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
@@ -59,7 +67,7 @@ export default function SignupPage({ onSwitchToLogin }: { onSwitchToLogin?: () =
             role,
             full_name: role === 'clinic' ? formData.clinicName : formData.username,
             location: formData.location,
-            phone: formData.phone,
+            phone,
             ...(role === 'clinic' ? { clinic_name: formData.clinicName } : {}),
           },
           emailRedirectTo: `${getSiteUrl()}/auth/callback`,
@@ -160,9 +168,9 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
         <Label htmlFor="patient-phone">Phone number</Label>
         <div className="relative">
           <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input id="patient-phone" type="tel" pattern="[+]?[0-9]+" className="pl-10" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: digitsOnly(e.target.value) })} autoComplete="tel" placeholder="+15551234567" required />
+          <Input id="patient-phone" type="tel" inputMode="tel" pattern="(09[0-9]{9}|[+]639[0-9]{9})" maxLength={13} title="Enter 09XXXXXXXXX or +639XXXXXXXXX." aria-describedby="patient-phone-help" className="pl-10" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: digitsOnly(e.target.value) })} autoComplete="tel" placeholder="09171234567" required />
         </div>
-        <p className="text-xs text-gray-500">Used for appointment reminders and updates. Include the country code when needed.</p>
+        <p id="patient-phone-help" className="text-xs text-gray-500">Philippine mobile number: 09XXXXXXXXX or +639XXXXXXXXX.</p>
       </div>
 
       <div className="space-y-2">
@@ -227,9 +235,9 @@ function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit
         <Label htmlFor="clinic-phone">Phone number</Label>
         <div className="relative">
           <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input id="clinic-phone" type="tel" pattern="[+]?[0-9]+" className="pl-10" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: digitsOnly(e.target.value) })} autoComplete="tel" placeholder="+15551234567" required />
+          <Input id="clinic-phone" type="tel" inputMode="tel" pattern="(09[0-9]{9}|[+]639[0-9]{9})" maxLength={13} title="Enter 09XXXXXXXXX or +639XXXXXXXXX." aria-describedby="clinic-phone-help" className="pl-10" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: digitsOnly(e.target.value) })} autoComplete="tel" placeholder="09171234567" required />
         </div>
-        <p className="text-xs text-gray-500">Used for clinic appointment notifications.</p>
+        <p id="clinic-phone-help" className="text-xs text-gray-500">Philippine mobile number: 09XXXXXXXXX or +639XXXXXXXXX.</p>
       </div>
 
       <div className="space-y-2">
