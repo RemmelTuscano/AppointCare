@@ -124,7 +124,7 @@ function notificationFixture({ preferences = { email: true, sms: true }, profile
 }
 
 test('doctor names appear with one title in every email and SMS template', () => {
-  const email = load('src/lib/email-templates.ts', { './doctor-name': doctorName }, {})
+  const email = load('src/lib/email-templates.ts', { './doctor-name': doctorName, './schedule-id': { formatScheduleId: (id) => id } }, {})
   const sms = load('src/lib/sms.ts', { './doctor-name': doctorName }, {})
   const templates = [
     email.getConfirmationEmailHtml,

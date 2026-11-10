@@ -21,7 +21,7 @@ import {
   Stethoscope,
   TriangleAlert,
 } from 'lucide-react'
-import { formatScheduleId } from '@/lib/email-templates'
+import { formatScheduleId } from '@/lib/schedule-id'
 
 type PatientAppointment = {
   id: string
@@ -46,7 +46,8 @@ export default function PatientAppointments() {
 
   const fetchAppointments = useEffectEvent(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) return
 
       const { data } = await supabase

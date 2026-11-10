@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Calendar, MapPin, Stethoscope, Clock, CheckCircle, Hash, type LucideIcon } from 'lucide-react'
 import { format } from 'date-fns'
-import { formatScheduleId } from '@/lib/email-templates'
+import { formatScheduleId } from '@/lib/schedule-id'
 
 type Appointment = {
   id: string
@@ -22,7 +22,8 @@ export default function PatientDashboard() {
 
   useEffect(() => {
     const fetchAppointments = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) return
 
       const { data } = await supabase

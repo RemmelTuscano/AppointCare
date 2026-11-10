@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Bell, CheckCheck, Hash, Mail, MessageSquare } from 'lucide-react'
-import { formatScheduleId } from '@/lib/email-templates'
+import { formatScheduleId } from '@/lib/schedule-id'
 
 export type AppNotification = {
   id: string

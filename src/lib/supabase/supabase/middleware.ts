@@ -44,7 +44,8 @@ export async function updateSession(request: NextRequest) {
   }
 
   try {
-    const { error } = await supabase.auth.getUser()
+    // Verifies the JWT locally when possible and refreshes expired sessions without an Auth server round trip.
+    const { error } = await supabase.auth.getClaims()
     if (error?.code === 'refresh_token_not_found') {
       clearStaleAuthCookies()
     }

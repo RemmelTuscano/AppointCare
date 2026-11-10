@@ -14,21 +14,23 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: claimsData } = await supabase.auth.getClaims()
+  const claims = claimsData?.claims
 
-  if (!user) {
+  if (!claims?.sub) {
     redirect('/login')
   }
 
+  const user = { id: claims.sub, email: claims.email as string | undefined, user_metadata: (claims.user_metadata || {}) as Record<string, unknown> }
   let profile = null
   const metadataRole = user.user_metadata.role
-  let role = metadataRole === 'admin' || metadataRole === 'clinic' || metadataRole === 'patient' ? metadataRole : 'patient'
+  let role: 'admin' | 'clinic' | 'patient' = metadataRole === 'admin' || metadataRole === 'clinic' || metadataRole === 'patient' ? metadataRole : 'patient'
 
   // The profile is preferred, while Auth metadata keeps the dashboard available during RLS repairs.
   try {
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('*')
+      .select('full_name, role')
       .eq('id', user.id)
       .single()
 

@@ -25,7 +25,7 @@ import {
   TriangleAlert,
   XCircle,
 } from 'lucide-react'
-import { formatScheduleId } from '@/lib/email-templates'
+import { formatScheduleId } from '@/lib/schedule-id'
 import { describeNotificationStatus, notificationsAccepted } from '@/lib/notification-status'
 
 type ClinicAppointment = {
@@ -90,7 +90,8 @@ export default function ClinicAppointments() {
 
   const fetchAppointments = useEffectEvent(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) return
 
       const { data: clinic } = await supabase
