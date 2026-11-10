@@ -173,15 +173,26 @@ export function AIAssistant() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="border-t border-[#d8e8da] bg-[#fafffa] px-4 pb-3 pt-2">
-              <button
-                type="button"
-                onClick={() => { void sendMessage('Suggest the best available clinic for me. Ask for my location, preferred specialty, and preferred timing if needed.') }}
-                disabled={loading}
-                className="rounded-full border border-[#9dccaa] bg-[#eaf5e9] px-3 py-1.5 text-xs font-medium text-[#27684e] transition hover:bg-[#dff0df] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Suggest a clinic
-              </button>
+            <div className="flex gap-2 overflow-x-auto border-t border-[#d8e8da] bg-[#fafffa] px-4 pb-3 pt-2">
+              {[
+                ['Suggest a clinic', 'Suggest the best available clinic for me. Ask for my location, preferred specialty, and preferred timing if needed.'],
+                ['How to book', 'How do I book, reschedule, or cancel an appointment?'],
+                ['Time slots', 'What appointment time slots are available?'],
+                ['What to bring', 'What documents should I bring to my visit?'],
+                ['Running late', 'What should I do if I am running late for my appointment?'],
+                ['Fees & payment', 'How much is a consultation and what payment methods are accepted?'],
+                ['Reminders', 'How do I get appointment reminders and notifications?'],
+              ].map(([label, prompt]) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => { void sendMessage(prompt) }}
+                  disabled={loading}
+                  className="shrink-0 rounded-full border border-[#9dccaa] bg-[#eaf5e9] px-3 py-1.5 text-xs font-medium text-[#27684e] transition hover:bg-[#dff0df] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             {/* Input */}
@@ -203,6 +214,7 @@ export function AIAssistant() {
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
+              <p className="mt-2 text-[11px] leading-snug text-[#4b6b58]">For guidance only, not medical advice. Confirm details with the clinic. In an emergency, call your local emergency number.</p>
             </div>
           </motion.div>
         )}
