@@ -71,6 +71,12 @@ export default function PatientClinics() {
 
         setClinics(payload.clinics || [])
         setMessage(null)
+        const requestedClinic = new URLSearchParams(window.location.search).get('clinic')
+        const match = requestedClinic ? (payload.clinics || []).find((clinic: Clinic) => clinic.id === requestedClinic) : null
+        if (match) {
+          setSelectedClinic(match)
+          setDoctors(match.doctors?.filter((doctor: ClinicDoctor) => doctor.is_available) || [])
+        }
       } catch (error) {
         setMessage(error instanceof Error ? error.message : 'Unable to load the clinic directory.')
       } finally {

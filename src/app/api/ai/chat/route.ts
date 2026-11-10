@@ -10,6 +10,7 @@ interface ChatHistoryMessage {
 }
 
 interface ClinicContext {
+  id: string
   name: string
   address: string
   phone: string | null
@@ -28,7 +29,7 @@ async function getClinicContext(): Promise<ClinicContext[]> {
   })
   const { data, error } = await supabase
     .from('clinics')
-    .select('name, address, phone, description, daily_capacity, doctors(name, specialization, is_available, schedule)')
+    .select('id, name, address, phone, description, daily_capacity, doctors(name, specialization, is_available, schedule)')
     .eq('is_verified', true)
     .order('name')
     .limit(25)
@@ -177,7 +178,8 @@ export async function POST(req: Request) {
   - Use the live verified clinic directory above when suggesting clinics or available doctors.
   - Recommend no more than three clinics and include the clinic name, address, and relevant available specialty when known.
   - If the user has not provided a location, specialty, or timing preference, ask one concise question before ranking options.
-  - If no directory match exists, say that clearly and direct the user to the clinic directory. Never create a clinic or doctor that is not listed above.
+  - Directory links: whenever you suggest or list clinics or available doctors, give each clinic as a Markdown link in the form [Clinic name](/patient/clinics?clinic=CLINIC_ID), using that clinic's exact id from the directory above, so the user can open it and book. Also mention the general directory link [Clinic directory](/patient/clinics). Use only these two relative link forms, never other URLs, and never invent an id.
+  - If no directory match exists, say that clearly and share the [Clinic directory](/patient/clinics) link. Never create a clinic or doctor that is not listed above.
   `
 
     const model = gemini.getGenerativeModel({

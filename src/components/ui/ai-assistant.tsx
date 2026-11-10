@@ -5,6 +5,25 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, X, Send, Bot, User, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import Link from 'next/link'
+
+const CLINIC_LINK = /\[([^\]\n]{1,80})\]\((\/patient\/clinics(?:\?clinic=[0-9a-f-]{36})?)\)/gi
+
+function MessageContent({ content }: { content: string }) {
+  const parts: React.ReactNode[] = []
+  let last = 0
+  for (const match of content.matchAll(CLINIC_LINK)) {
+    if (match.index > last) parts.push(content.slice(last, match.index))
+    parts.push(
+      <Link key={match.index} href={match[2]} className="font-semibold text-[#27684e] underline underline-offset-2 hover:text-[#174c40]">
+        {match[1]}
+      </Link>
+    )
+    last = match.index + match[0].length
+  }
+  parts.push(content.slice(last))
+  return <span className="whitespace-pre-wrap">{parts}</span>
+}
 
 interface Message {
   role: 'user' | 'assistant'
@@ -147,7 +166,7 @@ export function AIAssistant() {
                         : 'rounded-bl-none border border-[#d8e8da] bg-white text-[#24483d] shadow-sm'
                     }`}
                   >
-                    {msg.content}
+                    <MessageContent content={msg.content} />
                   </div>
                   {msg.role === 'user' && (
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#d8e8da]">
