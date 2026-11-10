@@ -1,4 +1,5 @@
 import { format } from 'date-fns'
+import { formatDoctorName } from './doctor-name'
 
 interface SMSParams {
   to: string
@@ -25,17 +26,17 @@ export function generateSmsMessage({
 
   switch (type) {
     case 'created':
-      return `[AppointCare] ${greeting}, your appointment request at ${clinicName || 'Clinic'} is received! Ref #${scheduleId} for ${dateStr} with Dr. ${doctorName || 'Assigned Doctor'}. We will notify you once confirmed.`
+      return `[AppointCare] ${greeting}, your appointment request at ${clinicName || 'Clinic'} is received! Ref #${scheduleId} for ${dateStr} with ${formatDoctorName(doctorName, 'the assigned doctor')}. We will notify you once confirmed.`
     case 'confirmed':
-      return `[AppointCare] ${greeting}, your appointment (Ref #${scheduleId}) at ${clinicName || 'Clinic'} on ${dateStr} with Dr. ${doctorName || 'Doctor'} is CONFIRMED. Please arrive 10 min early.`
+      return `[AppointCare] ${greeting}, your appointment (Ref #${scheduleId}) at ${clinicName || 'Clinic'} on ${dateStr} with ${formatDoctorName(doctorName, 'the doctor')} is CONFIRMED. Please arrive 10 min early.`
     case 'doctor_unavailable':
-      return `[AppointCare] NOTICE: Dr. ${doctorName || 'Doctor'} is unavailable for your visit on ${dateStr} (Ref #${scheduleId}). The clinic is currently rescheduling your appointment and will notify you shortly with the new time.`
+      return `[AppointCare] NOTICE: ${formatDoctorName(doctorName, 'Your doctor')} is unavailable for your visit on ${dateStr} (Ref #${scheduleId}). The clinic is currently rescheduling your appointment and will notify you shortly with the new time.`
     case 'rescheduled':
-      return `[AppointCare] ${greeting}, your appointment (Ref #${scheduleId}) has been RESCHEDULED to ${dateStr} with Dr. ${doctorName || 'Doctor'} at ${clinicName || 'Clinic'}.`
+      return `[AppointCare] ${greeting}, your appointment (Ref #${scheduleId}) has been RESCHEDULED to ${dateStr} with ${formatDoctorName(doctorName, 'the doctor')} at ${clinicName || 'Clinic'}.`
     case 'cancelled':
       return `[AppointCare] Notice: Your appointment (Ref #${scheduleId}) at ${clinicName || 'Clinic'} for ${dateStr} has been cancelled.${reason ? ` Reason: ${reason}` : ''}`
     case 'reminder':
-      return `[AppointCare] REMINDER: You have an upcoming appointment (Ref #${scheduleId}) at ${clinicName || 'Clinic'} on ${dateStr} with Dr. ${doctorName || 'Doctor'}.`
+      return `[AppointCare] REMINDER: You have an upcoming appointment (Ref #${scheduleId}) at ${clinicName || 'Clinic'} on ${dateStr} with ${formatDoctorName(doctorName, 'the doctor')}.`
     default:
       return `[AppointCare] Update on appointment Ref #${scheduleId} on ${dateStr}.`
   }

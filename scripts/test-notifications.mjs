@@ -31,6 +31,8 @@ function load(relativePath, mocks, env, fetchMock) {
   return loadedModule.exports
 }
 
+const doctorName = load('src/lib/doctor-name.ts', {}, {})
+
 const smsParams = {
   to: '+1 (202) 555-0123',
   scheduleId: 'SCH-123',
@@ -40,7 +42,7 @@ const smsParams = {
 
 test('TextBee sends a normalized number to the documented endpoint and returns its real batch ID', async () => {
   let request
-  const sms = load('src/lib/sms.ts', {}, { TEXTBEE_API_KEY: 'test-key', TEXTBEE_DEVICE_ID: 'device-1' },
+  const sms = load('src/lib/sms.ts', { './doctor-name': doctorName }, { TEXTBEE_API_KEY: 'test-key', TEXTBEE_DEVICE_ID: 'device-1' },
     async (url, options) => {
       request = { url, options }
       return { ok: true, json: async () => ({ data: { success: true, smsBatchId: 'batch-1' } }) }
@@ -59,7 +61,7 @@ test('TextBee sends a normalized number to the documented endpoint and returns i
 test('TextBee does not simulate or claim success for invalid inputs and failed responses', async () => {
   let requests = 0
   let response = { ok: false, status: 400, json: async () => ({ message: 'No enabled device' }) }
-  const sms = load('src/lib/sms.ts', {}, { TEXTBEE_API_KEY: 'test-key' },
+  const sms = load('src/lib/sms.ts', { './doctor-name': doctorName }, { TEXTBEE_API_KEY: 'test-key' },
     async () => { requests++; return response })
   assert.equal((await sms.sendSmsNotification({ ...smsParams, to: 'invalid' })).success, false)
   assert.equal(requests, 0)
@@ -74,7 +76,7 @@ test('TextBee does not simulate or claim success for invalid inputs and failed r
   assert.equal((await sms.sendSmsNotification(smsParams)).success, false)
   response = { ok: true, json: async () => ({ data: { success: true, smsBatchId: 'batch-1', warning: { message: 'SMS permission missing' } } }) }
   assert.equal((await sms.sendSmsNotification(smsParams)).warning, 'SMS permission missing')
-  const unconfigured = load('src/lib/sms.ts', {}, {}, async () => { throw new Error('unexpected request') })
+  const unconfigured = load('src/lib/sms.ts', { './doctor-name': doctorName }, {}, async () => { throw new Error('unexpected request') })
   const result = await unconfigured.sendSmsNotification(smsParams)
   assert.equal(result.success, false)
   assert.match(result.error, /TEXTBEE_API_KEY/)
@@ -93,6 +95,7 @@ function notificationFixture({ preferences = { email: true, sms: true }, profile
   }).sendEmail
   const notifications = load('src/lib/notifications.ts', {
     './send-email': { sendEmail },
+    './doctor-name': doctorName,
     './email-templates': {
       formatScheduleId: () => 'SCH-123',
       getConfirmationEmailHtml: template,
@@ -117,8 +120,52 @@ function notificationFixture({ preferences = { email: true, sms: true }, profile
     type: 'confirmed', appointmentId: 'appointment-1', patientUserId: 'patient-1',
     patientEmail: 'patient@example.test', patientPhone: '+12025550123', scheduledAt: '2026-01-02T10:00:00Z',
   }
-  return { sent, dispatch: () => notifications.dispatchAutomatedNotifications(payload) }
+  return { sent, dispatch: (overrides = {}) => notifications.dispatchAutomatedNotifications({ ...payload, ...overrides }) }
 }
+
+test('doctor names appear with one title in every email and SMS template', () => {
+  const email = load('src/lib/email-templates.ts', { './doctor-name': doctorName }, {})
+  const sms = load('src/lib/sms.ts', { './doctor-name': doctorName }, {})
+  const templates = [
+    email.getConfirmationEmailHtml,
+    (props) => email.getConfirmationEmailHtml({ ...props, isPending: true }),
+    email.getRescheduledEmailHtml,
+    email.getCancelledEmailHtml,
+    email.getDoctorUnavailableEmailHtml,
+    email.getReminderEmailHtml,
+  ]
+  const types = ['created', 'confirmed', 'doctor_unavailable', 'rescheduled', 'reminder']
+  for (const name of ['Maria Santos', 'Dr. Maria Santos', 'dr Maria Santos', ' Dr. Dr. Maria Santos ', 'Dr.Maria Santos']) {
+    for (const template of templates) {
+      const message = template({ ...smsParams, doctorName: name })
+      assert.match(message, /Dr\. Maria Santos/)
+      assert.doesNotMatch(message, /Dr\.\s*Dr\.?/i)
+    }
+    for (const type of types) {
+      const message = sms.generateSmsMessage({ ...smsParams, type, doctorName: name })
+      assert.match(message, /Dr\. Maria Santos/)
+      assert.doesNotMatch(message, /Dr\.\s*Dr\.?/i)
+    }
+  }
+  assert.equal(doctorName.formatDoctorName('Drake Santos', 'Doctor'), 'Dr. Drake Santos')
+  assert.equal(doctorName.formatDoctorName('  ', 'your doctor'), 'your doctor')
+  assert.equal(doctorName.formatDoctorName('Dr.', 'your doctor'), 'your doctor')
+  for (const template of templates) {
+    assert.doesNotMatch(template({ ...smsParams, doctorName: null }), /Dr\. (?:Assigned|your)/)
+  }
+  for (const type of types) {
+    assert.doesNotMatch(sms.generateSmsMessage({ ...smsParams, type, doctorName: null }), /Dr\. (?:Assigned|Doctor)/)
+  }
+})
+
+test('in-app appointment notifications also use one doctor title', async () => {
+  const fixture = notificationFixture()
+  for (const type of ['confirmed', 'doctor_unavailable', 'rescheduled']) {
+    const result = await fixture.dispatch({ type, doctorName: 'Dr. Maria Santos' })
+    assert.match(result.inAppNotifications[0].message, /Dr\. Maria Santos/)
+    assert.doesNotMatch(result.inAppNotifications[0].message, /Dr\.\s*Dr\./)
+  }
+})
 
 test('notifications send through Resend and TextBee and respect patient preferences', async () => {
   const all = notificationFixture()

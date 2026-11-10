@@ -8,6 +8,7 @@ import {
   getReminderEmailHtml,
 } from './email-templates'
 import { sendSmsNotification } from './sms'
+import { formatDoctorName } from './doctor-name'
 import { createClient } from '@supabase/supabase-js'
 
 export { formatScheduleId }
@@ -221,13 +222,13 @@ export async function dispatchAutomatedNotifications(
       patientMsg = `Your appointment request for ${payload.clinicName || 'the clinic'} has been received and is pending confirmation.`
     } else if (payload.type === 'confirmed') {
       patientTitle = `Appointment Confirmed (${scheduleId})`
-      patientMsg = `Your visit at ${payload.clinicName || 'the clinic'} with Dr. ${payload.doctorName || 'Assigned Doctor'} is confirmed.`
+      patientMsg = `Your visit at ${payload.clinicName || 'the clinic'} with ${formatDoctorName(payload.doctorName, 'the assigned doctor')} is confirmed.`
     } else if (payload.type === 'doctor_unavailable') {
       patientTitle = `Doctor Unavailable Notice (${scheduleId})`
-      patientMsg = `Dr. ${payload.doctorName || 'Doctor'} is currently unavailable. The clinic is arranging a reschedule or doctor reassignment and will notify you with the updated time.`
+      patientMsg = `${formatDoctorName(payload.doctorName, 'Your doctor')} is currently unavailable. The clinic is arranging a reschedule or doctor reassignment and will notify you with the updated time.`
     } else if (payload.type === 'rescheduled') {
       patientTitle = `Appointment Rescheduled (${scheduleId})`
-      patientMsg = `Your appointment with Dr. ${payload.doctorName || 'Doctor'} at ${payload.clinicName || 'the clinic'} is updated.`
+      patientMsg = `Your appointment with ${formatDoctorName(payload.doctorName, 'the doctor')} at ${payload.clinicName || 'the clinic'} is updated.`
     } else if (payload.type === 'cancelled') {
       patientTitle = `Appointment Cancelled (${scheduleId})`
       patientMsg = `Your appointment at ${payload.clinicName || 'the clinic'} was cancelled.`

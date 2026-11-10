@@ -1,4 +1,5 @@
 import { format } from 'date-fns'
+import { formatDoctorName } from './doctor-name'
 
 export function formatScheduleId(appointmentId: string): string {
   if (!appointmentId) return 'SCH-00000000'
@@ -111,7 +112,7 @@ export function getConfirmationEmailHtml({
         </tr>
         <tr>
           <td class="label-cell">Doctor</td>
-          <td class="value-cell">Dr. ${doctorName || 'Assigned Specialist'}${doctorSpecialization ? ` (${doctorSpecialization})` : ''}</td>
+          <td class="value-cell">${formatDoctorName(doctorName, 'Assigned Specialist')}${doctorSpecialization ? ` (${doctorSpecialization})` : ''}</td>
         </tr>
         <tr>
           <td class="label-cell">Clinic</td>
@@ -209,7 +210,7 @@ export function getRescheduledEmailHtml({
         </tr>
         <tr>
           <td class="label-cell">Doctor</td>
-          <td class="value-cell">Dr. ${doctorName || 'Assigned Specialist'}${doctorSpecialization ? ` (${doctorSpecialization})` : ''}</td>
+          <td class="value-cell">${formatDoctorName(doctorName, 'Assigned Specialist')}${doctorSpecialization ? ` (${doctorSpecialization})` : ''}</td>
         </tr>
         <tr>
           <td class="label-cell">Clinic</td>
@@ -284,7 +285,7 @@ export function getCancelledEmailHtml({
         </tr>
         <tr>
           <td class="label-cell">Doctor</td>
-          <td class="value-cell">Dr. ${doctorName || 'Assigned Specialist'}</td>
+          <td class="value-cell">${formatDoctorName(doctorName, 'Assigned Specialist')}</td>
         </tr>
         <tr>
           <td class="label-cell">Clinic</td>
@@ -342,7 +343,7 @@ export function getDoctorUnavailableEmailHtml({
 
       <p>Hello <strong>${patientName || 'Valued Patient'}</strong>,</p>
       <p>
-        We regret to inform you that <strong>Dr. ${doctorName || 'your assigned doctor'}</strong> at <strong>${clinicName || 'the clinic'}</strong> is unavailable for your appointment scheduled on <strong>${formattedDate} at ${formattedTime}</strong>.
+        We regret to inform you that <strong>${formatDoctorName(doctorName, 'your assigned doctor')}</strong> at <strong>${clinicName || 'the clinic'}</strong> is unavailable for your appointment scheduled on <strong>${formattedDate} at ${formattedTime}</strong>.
       </p>
 
       <div class="schedule-box" style="background: #fff1f2; border-color: #e11d48;">
@@ -425,7 +426,7 @@ export function getReminderEmailHtml({
         </tr>
         <tr>
           <td class="label-cell">Doctor</td>
-          <td class="value-cell">Dr. ${doctorName || 'Assigned Doctor'}</td>
+          <td class="value-cell">${formatDoctorName(doctorName, 'Assigned Doctor')}</td>
         </tr>
         <tr>
           <td class="label-cell">Clinic</td>
