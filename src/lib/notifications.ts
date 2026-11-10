@@ -1,4 +1,4 @@
-import { Resend } from 'resend'
+import { sendEmail } from './send-email'
 import {
   formatScheduleId,
   getConfirmationEmailHtml,
@@ -182,37 +182,7 @@ export async function dispatchAutomatedNotifications(
   } else if (!payload.patientEmail) {
     result.email = { sent: false, skipped: true, error: 'Patient email address is missing.' }
   } else {
-    const apiKey = process.env.RESEND_API_KEY?.trim()
-    const isRealKey = apiKey && !apiKey.startsWith('your_') && !apiKey.includes('placeholder') && apiKey !== 're_123456789'
-    const fromEmail = process.env.RESEND_FROM_EMAIL?.trim()
-
-    if (isRealKey) {
-      if (!fromEmail) {
-        result.email = { sent: false, error: 'RESEND_FROM_EMAIL is not configured. Set it to a verified sender address.' }
-      } else {
-        try {
-          const resend = new Resend(apiKey)
-          const { data, error } = await resend.emails.send({
-            from: fromEmail,
-            to: payload.patientEmail,
-            subject: emailSubject,
-            html: emailHtml,
-          })
-          if (error) {
-            result.email = { sent: false, error: error.message }
-          } else if (!data?.id) {
-            result.email = { sent: false, error: 'Resend did not confirm the email request.' }
-          } else {
-            result.email = { sent: true }
-          }
-        } catch (err: unknown) {
-          console.warn('Resend email request failed:', err)
-          result.email = { sent: false, error: 'Resend request failed. Check the server logs.' }
-        }
-      }
-    } else {
-      result.email = { sent: false, error: 'RESEND_API_KEY is not configured.' }
-    }
+    result.email = await sendEmail({ to: payload.patientEmail, subject: emailSubject, html: emailHtml })
   }
 
   // 3. Dispatch SMS only when the patient opted in and has a phone number.

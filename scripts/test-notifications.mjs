@@ -21,7 +21,7 @@ function load(relativePath, mocks, env, fetchMock) {
     exports: loadedModule.exports,
     process: { env },
     fetch: fetchMock,
-    console: { warn() {}, log() {} },
+    console: { warn() {}, log() {}, error() {} },
     require(name) {
       if (name in mocks) return mocks[name]
       if (name === 'date-fns') return nodeRequire(name)
@@ -86,8 +86,13 @@ function notificationFixture({ preferences = { email: true, sms: true }, profile
     emails = { send: async (message) => { sent.email.push(message); return resendResponse } }
   }
   const template = () => '<p>Appointment</p>'
+  const sendEmail = load('src/lib/send-email.ts', { resend: { Resend }, 'server-only': {} }, {
+    RESEND_API_KEY: 'test-resend-key',
+    RESEND_FROM_EMAIL: 'AppointCare <appointments@example.test>',
+    ...env,
+  }).sendEmail
   const notifications = load('src/lib/notifications.ts', {
-    resend: { Resend },
+    './send-email': { sendEmail },
     './email-templates': {
       formatScheduleId: () => 'SCH-123',
       getConfirmationEmailHtml: template,
@@ -141,6 +146,13 @@ test('notifications surface Resend errors and refuse delivery if preferences can
   const unconfigured = notificationFixture({ env: { RESEND_API_KEY: '' } })
   assert.equal((await unconfigured.dispatch()).email.sent, false)
   assert.equal(unconfigured.sent.email.length, 0)
+
+  const missingSender = notificationFixture({ env: { RESEND_FROM_EMAIL: '' } })
+  assert.match((await missingSender.dispatch()).email.error, /RESEND_FROM_EMAIL/)
+  assert.equal(missingSender.sent.email.length, 0)
+
+  const unconfirmed = notificationFixture({ resendResponse: { data: {}, error: null } })
+  assert.match((await unconfirmed.dispatch()).email.error, /did not confirm/)
 
   const unavailable = notificationFixture({ preferences: null, profileError: { message: 'failed' }, authError: { message: 'failed' } })
   const blocked = await unavailable.dispatch()

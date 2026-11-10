@@ -1,49 +1,7 @@
 import { Check, Clock3, Eye, Search } from 'lucide-react'
 import Link from 'next/link'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAdminClient } from '@/lib/supabase/admin-access'
-import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
-
-async function setClinicVerification(formData: FormData) {
-  'use server'
-
-  const clinicId = formData.get('clinicId')
-  const verified = formData.get('verified') === 'true'
-  if (typeof clinicId !== 'string' || !clinicId) return
-
-  const sessionClient = await createClient()
-  if (!sessionClient) return
-
-  const { data: { user } } = await sessionClient.auth.getUser()
-  if (!user || user.app_metadata.role !== 'admin') {
-    throw new Error('Only administrators can change clinic verification.')
-  }
-
-  const admin = createAdminClient()
-  if (!admin) return
-
-  const { error } = await admin.from('clinics').update({ is_verified: verified }).eq('id', clinicId)
-  if (error) {
-    console.error('Clinic verification update failed:', error.message)
-    return
-  }
-
-  const { data: clinic } = await admin.from('clinics').select('name').eq('id', clinicId).single()
-  await admin.from('activity_logs').insert({
-    actor_id: user.id,
-    action: verified ? 'clinic_verified' : 'clinic_verification_revoked',
-    entity_type: 'clinic',
-    entity_id: clinicId,
-    summary: `${clinic?.name || 'Clinic'} was ${verified ? 'verified' : 'marked for review'}`,
-    metadata: { verified },
-  })
-
-  revalidatePath('/admin/clinics')
-  revalidatePath('/admin/dashboard')
-  revalidatePath('/admin/activity')
-  revalidatePath('/api/clinics')
-}
+import { ClinicVerificationButton } from '@/components/ui/clinic-verification-button'
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value))
@@ -75,7 +33,7 @@ export default async function AdminClinicsPage() {
           <div><h2 className="font-semibold text-emerald-950">Clinic directory</h2><p className="mt-1 text-sm text-gray-500">Search and review every clinic on AppointCare.</p></div>
           <label className="relative block sm:w-72"><Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" /><input aria-label="Search clinics" placeholder="Search clinics" className="h-9 w-full rounded-md border border-emerald-100 bg-emerald-50/30 pl-9 pr-3 text-sm outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100" /></label>
         </div>
-        <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-emerald-50/50 text-xs uppercase tracking-wide text-gray-500"><tr><th className="px-5 py-3 font-semibold">Clinic</th><th className="px-5 py-3 font-semibold">Contact</th><th className="px-5 py-3 font-semibold">Submitted</th><th className="px-5 py-3 font-semibold">Status</th><th className="px-5 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-emerald-50">{clinics.length === 0 ? <tr><td colSpan={5} className="px-5 py-12 text-center text-gray-500">No clinics found in the database.</td></tr> : clinics.map((clinic) => <tr key={clinic.id} className="hover:bg-emerald-50/30"><td className="px-5 py-4"><p className="font-semibold text-emerald-950">{clinic.name}</p><p className="mt-1 text-gray-500">{clinic.address}</p></td><td className="px-5 py-4 text-gray-600">{clinic.email || 'No email'}</td><td className="px-5 py-4 text-gray-600">{formatDate(clinic.created_at)}</td><td className="px-5 py-4"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${clinic.is_verified ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{clinic.is_verified ? <Check className="h-3 w-3" /> : <Clock3 className="h-3 w-3" />}{clinic.is_verified ? 'Verified' : 'Pending review'}</span></td><td className="px-5 py-4 text-right"><div className="flex justify-end gap-2"><Link href={`/admin/clinics/${clinic.id}`} className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"><Eye className="h-3.5 w-3.5" />Details</Link><form action={setClinicVerification}><input type="hidden" name="clinicId" value={clinic.id} /><input type="hidden" name="verified" value={String(!clinic.is_verified)} /><button type="submit" className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-xs font-semibold transition ${clinic.is_verified ? 'border border-amber-200 text-amber-800 hover:bg-amber-50' : 'bg-emerald-800 text-white hover:bg-emerald-900'}`}>{clinic.is_verified ? 'Revoke' : 'Verify clinic'}</button></form></div></td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-emerald-50/50 text-xs uppercase tracking-wide text-gray-500"><tr><th className="px-5 py-3 font-semibold">Clinic</th><th className="px-5 py-3 font-semibold">Contact</th><th className="px-5 py-3 font-semibold">Submitted</th><th className="px-5 py-3 font-semibold">Status</th><th className="px-5 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-emerald-50">{clinics.length === 0 ? <tr><td colSpan={5} className="px-5 py-12 text-center text-gray-500">No clinics found in the database.</td></tr> : clinics.map((clinic) => <tr key={clinic.id} className="hover:bg-emerald-50/30"><td className="px-5 py-4"><p className="font-semibold text-emerald-950">{clinic.name}</p><p className="mt-1 text-gray-500">{clinic.address}</p></td><td className="px-5 py-4 text-gray-600">{clinic.email || 'No email'}</td><td className="px-5 py-4 text-gray-600">{formatDate(clinic.created_at)}</td><td className="px-5 py-4"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${clinic.is_verified ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{clinic.is_verified ? <Check className="h-3 w-3" /> : <Clock3 className="h-3 w-3" />}{clinic.is_verified ? 'Verified' : 'Pending review'}</span></td><td className="px-5 py-4 text-right"><div className="flex justify-end gap-2"><Link href={`/admin/clinics/${clinic.id}`} className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"><Eye className="h-3.5 w-3.5" />Details</Link><ClinicVerificationButton clinicId={clinic.id} clinicName={clinic.name} verified={Boolean(clinic.is_verified)} /></div></td></tr>)}</tbody></table></div>
       </section>
     </div>
   )

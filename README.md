@@ -93,6 +93,11 @@ interpreted by the sending SIM's carrier. Patients can enable or disable email a
 account preferences. Missing credentials and provider failures are reported rather than
 simulated. A provider accepting a request does not guarantee delivery.
 
+When an administrator confirms a clinic verification, the app sends a verification email to
+the clinic owner's Supabase account email using the same Resend configuration. If the email
+fails, the clinic remains verified and the administrator is warned to notify the clinic
+manually. Revoking verification does not send an email.
+
 Patient and clinic signup accept Philippine mobile numbers in `09XXXXXXXXX` or
 `+639XXXXXXXXX` format and store them as `+639XXXXXXXXX`. Existing account numbers are not
 changed automatically. If your Supabase project uses the signup trigger from
