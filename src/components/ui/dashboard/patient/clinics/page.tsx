@@ -45,6 +45,13 @@ function applyTimeSlot(date: Date, slot: string) {
   return result
 }
 
+function isPastTimeSlot(date: Date, slot: string, now = new Date()) {
+  const isToday = date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate()
+  return isToday && applyTimeSlot(date, slot) <= now
+}
+
 export default function PatientClinics() {
   const [selectedTime, setSelectedTime] = useState('')
   const [clinics, setClinics] = useState<Clinic[]>([])
@@ -316,7 +323,10 @@ export default function PatientClinics() {
                     <Calendar
                       mode="single"
                       selected={selectedDate}
-                      onSelect={setSelectedDate}
+                      onSelect={(date) => {
+                        setSelectedDate(date)
+                        setSelectedTime('')
+                      }}
                       disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0)) || date.getDay() === 0}
                       className="mt-4 rounded-md border border-emerald-100 bg-white"
                     />
@@ -335,6 +345,7 @@ export default function PatientClinics() {
                                 type="button"
                                 variant={selectedTime === slot ? 'default' : 'outline'}
                                 aria-pressed={selectedTime === slot}
+                                disabled={!selectedDate || isPastTimeSlot(selectedDate, slot)}
                                 className="w-full"
                                 onClick={() => setSelectedTime(slot)}
                               >

@@ -19,7 +19,13 @@ interface ClinicContext {
   doctors: { name: string; specialization: string | null; is_available: boolean; schedule: unknown }[]
 }
 
+let cachedClinicContext: { clinics: ClinicContext[]; expiresAt: number } | null = null
+
 async function getClinicContext(): Promise<ClinicContext[]> {
+  if (cachedClinicContext && cachedClinicContext.expiresAt > Date.now()) {
+    return cachedClinicContext.clinics
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !serviceRoleKey) return []
@@ -35,7 +41,9 @@ async function getClinicContext(): Promise<ClinicContext[]> {
     .limit(25)
 
   if (error || !data) return []
-  return data as ClinicContext[]
+  const clinics = data as ClinicContext[]
+  cachedClinicContext = { clinics, expiresAt: Date.now() + 60_000 }
+  return clinics
 }
 
 function normalizeHistory(history: unknown) {
@@ -188,7 +196,7 @@ export async function POST(req: Request) {
     })
 
     const chat = model.startChat({
-      history: normalizeHistory(history).map((item) => ({
+      history: normalizeHistory(history).slice(-10).map((item) => ({
         role: item.role,
         parts: [{ text: item.content }],
       })),
@@ -198,10 +206,29 @@ export async function POST(req: Request) {
       },
     })
 
-    const result = await chat.sendMessage(message.trim())
+    const result = await chat.sendMessageStream(message.trim())
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          for await (const chunk of result.stream) {
+            const text = chunk.text()
+            if (text) controller.enqueue(encoder.encode(text))
+          }
+          controller.close()
+        } catch (error) {
+          console.error('AI Chat Stream Error:', error)
+          controller.error(error)
+        }
+      },
+    })
 
-    return NextResponse.json({
-      reply: result.response.text(),
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'X-Content-Type-Options': 'nosniff',
+      },
     })
   } catch (error) {
     console.error('AI Chat Error:', error)

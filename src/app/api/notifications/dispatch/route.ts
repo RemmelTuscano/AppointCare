@@ -59,6 +59,7 @@ export async function POST(request: Request) {
       (type === 'confirmed' && appointment.status === 'confirmed') ||
       (type === 'cancelled' && appointment.status === 'cancelled') ||
       (type === 'doctor_unavailable' && doctor?.is_available === false &&
+        new Date(appointment.scheduled_at).getTime() >= Date.now() &&
         ['pending', 'confirmed'].includes(appointment.status))
     )
   if (!permitted || !clinic) return NextResponse.json({ error: 'You cannot send this notification.' }, { status: 403 })

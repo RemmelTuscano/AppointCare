@@ -156,7 +156,7 @@ test('notification dispatch uses trusted appointment data and checks ownership a
   let user = null
   let sent
   let appointment = {
-    id: 'a', patient_id: 'patient', scheduled_at: '2026-01-01T10:00:00Z', status: 'pending', notes: null,
+    id: 'a', patient_id: 'patient', scheduled_at: new Date(Date.now() + 60_000).toISOString(), status: 'pending', notes: null,
     patient: { full_name: 'Patient', email: 'real@example.test', phone: null },
     clinic: { user_id: 'clinic-owner', name: 'Clinic', address: 'Address', phone: null },
     doctor: { name: 'Doctor', specialization: null, is_available: true },
@@ -191,6 +191,9 @@ test('notification dispatch uses trusted appointment data and checks ownership a
   assert.equal((await POST(request({ appointmentId: 'a', type: 'confirmed' }))).status, 200)
   assert.equal((await POST(request({ appointmentId: 'a', type: 'doctor_unavailable' }))).status, 403)
   appointment.doctor.is_available = false
+  appointment.scheduled_at = '2026-01-01T10:00:00Z'
+  assert.equal((await POST(request({ appointmentId: 'a', type: 'doctor_unavailable' }))).status, 403)
+  appointment.scheduled_at = new Date(Date.now() + 60_000).toISOString()
   assert.equal((await POST(request({ appointmentId: 'a', type: 'doctor_unavailable' }))).status, 200)
   appointment = null
   assert.equal((await POST(request({ appointmentId: 'missing', type: 'created' }))).status, 404)

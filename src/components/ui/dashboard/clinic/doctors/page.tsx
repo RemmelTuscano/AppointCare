@@ -211,6 +211,7 @@ export default function ClinicDoctors() {
           .select('id, scheduled_at, patient:profiles(id, full_name, email, phone), clinic:clinics(name, address)')
           .eq('doctor_id', id)
           .in('status', ['pending', 'confirmed'])
+          .gte('scheduled_at', new Date().toISOString())
 
         if (affectedApts && affectedApts.length > 0) {
           let acceptedCount = 0

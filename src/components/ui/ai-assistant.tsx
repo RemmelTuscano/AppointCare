@@ -56,7 +56,12 @@ export function AIAssistant() {
     if (!userMessage || loading) return
 
     setInput('')
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }])
+    const assistantMessageIndex = messages.length + 1
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', content: userMessage },
+      { role: 'assistant', content: '' },
+    ])
     setLoading(true)
 
     try {
@@ -66,23 +71,41 @@ export function AIAssistant() {
         body: JSON.stringify({ message: userMessage, history: messages }),
       })
 
-      const data = await response.json()
-
       if (!response.ok) {
+        const data = await response.json()
         throw new Error(data.error || 'Failed to process message')
       }
-      
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: data.reply || 'I apologize, but I\'m having trouble responding right now.' 
-      }])
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('The assistant response could not be read.')
+
+      const decoder = new TextDecoder()
+      let reply = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        reply += decoder.decode(value, { stream: true })
+        setMessages(prev => prev.map((msg, index) =>
+          index === assistantMessageIndex ? { ...msg, content: reply } : msg
+        ))
+      }
+      reply += decoder.decode()
+      setMessages(prev => prev.map((msg, index) =>
+        index === assistantMessageIndex
+          ? { ...msg, content: reply || 'I apologize, but I\'m having trouble responding right now.' }
+          : msg
+      ))
     } catch (error) {
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: error instanceof Error
-          ? error.message
-          : 'Sorry, there was an error processing your request.'
-      }])
+      setMessages(prev => prev.map((msg, index) =>
+        index === assistantMessageIndex
+          ? {
+              ...msg,
+              content: error instanceof Error
+                ? error.message
+                : 'Sorry, there was an error processing your request.',
+            }
+          : msg
+      ))
     } finally {
       setLoading(false)
     }
