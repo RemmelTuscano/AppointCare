@@ -46,7 +46,7 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen text-foreground lg:flex">
       <Sidebar role={role} userName={profile?.full_name || user.email || 'User'} />
-      <main className="min-w-0 flex-1 overflow-auto px-4 pb-8 pt-20 sm:px-6 sm:pb-10 lg:px-10 lg:py-8">
+      <main className="min-w-0 flex-1 overflow-auto px-4 pb-28 pt-4 sm:px-6 sm:pb-28 lg:px-10 lg:py-8 lg:pb-8 lg:pt-8">
         <div className="mx-auto w-full max-w-[1600px]">
           {children}
         </div>

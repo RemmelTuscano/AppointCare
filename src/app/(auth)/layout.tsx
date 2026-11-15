@@ -18,9 +18,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <span className="font-heading text-xl font-semibold">AppointCare</span>
         </Link>
         <div className="relative max-w-xl py-5 lg:pb-8">
-          <p className="text-xs font-bold uppercase text-[#f1d989]">Care, in good company</p>
-          <h1 className="mt-3 font-heading text-3xl font-medium leading-tight sm:text-4xl lg:text-5xl">Make space for what matters.</h1>
-          <p className="mt-3 max-w-md text-sm leading-6 text-white/80 sm:text-base">A calmer way to stay close to every appointment and the people who make care happen.</p>
+          <p className="text-[10px] sm:text-xs font-bold uppercase text-[#f1d989]">Care, in good company</p>
+          <h1 className="mt-2 sm:mt-3 font-heading text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-medium leading-tight">Make space for what matters.</h1>
+          <p className="mt-2 sm:mt-3 max-w-md text-xs sm:text-sm leading-6 text-white/80 sm:text-base">A calmer way to stay close to every appointment and the people who make care happen.</p>
         </div>
       </section>
       <div className="flex min-h-[calc(100svh-220px)] items-center justify-center px-5 py-8 sm:px-8 lg:min-h-screen lg:px-10 lg:py-12">

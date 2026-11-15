@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -12,8 +11,6 @@ import {
   Stethoscope, 
   Settings, 
   LogOut,
-  Menu,
-  X,
   Shield,
   Activity,
   HeartPulse,
@@ -52,7 +49,6 @@ const navigation = {
 }
 
 export function Sidebar({ role, userName }: SidebarProps) {
-  const [mobileOpen, setMobileOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -68,31 +64,13 @@ export function Sidebar({ role, userName }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile header */}
-      <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between border-b border-border/80 bg-card/95 px-4 py-3 shadow-sm backdrop-blur lg:hidden">
-        <span className="inline-flex items-center gap-2 font-heading text-lg font-semibold text-foreground"><HeartPulse className="size-5 text-primary" />AppointCare</span>
-        <Button variant="ghost" size="icon" aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'} onClick={() => setMobileOpen(!mobileOpen)}>
-          {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </Button>
-      </div>
-
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-foreground/35 backdrop-blur-[2px] lg:hidden"
-          onClick={() => setMobileOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside className={cn(
-        "fixed left-0 top-0 z-50 flex h-screen w-72 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-300 lg:sticky",
-        mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-      )}>
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:fixed lg:left-0 lg:top-0 z-50 lg:flex h-screen w-72 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl lg:sticky">
         <div className="border-b border-sidebar-border/70 px-5 py-6">
           <Link href={`/${activeRole}/dashboard`} className="flex items-center gap-3" aria-label="AppointCare dashboard">
-            <span className="grid size-10 place-items-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"><HeartPulse className="size-5" strokeWidth={2.5} /></span>
+            <span className="grid size-10 place-items-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
+              <HeartPulse className="size-5" strokeWidth={2.5} />
+            </span>
             <span>
               <span className="block font-heading text-xl font-semibold text-white">AppointCare</span>
               <span className="mt-0.5 block text-[11px] font-bold uppercase text-sidebar-foreground/55">{activeRole} workspace</span>
@@ -108,7 +86,6 @@ export function Sidebar({ role, userName }: SidebarProps) {
               <Link
                 key={item.name}
                 href={item.href}
-                onClick={() => setMobileOpen(false)}
                 className={cn(
                   "group flex min-h-11 items-center gap-3 rounded-md border border-transparent px-3.5 py-2.5 text-sm font-semibold transition-colors",
                   isActive
@@ -141,6 +118,53 @@ export function Sidebar({ role, userName }: SidebarProps) {
           </Button>
         </div>
       </aside>
+
+      {/* Mobile Floating Bottom Navigation Bar */}
+      <nav className="fixed bottom-6 left-4 right-4 z-50 flex items-center justify-around gap-2 rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 px-3 py-3 shadow-2xl backdrop-blur-xl lg:hidden">
+        {/* Animated background gradient */}
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/5 via-transparent to-primary/5 opacity-0 transition-opacity duration-300 hover:opacity-100" />
+        
+        {items.map((item) => {
+          const isActive = pathname === item.href
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className={cn(
+                "relative flex flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-2 transition-all duration-300 hover:bg-white/10",
+                isActive
+                  ? "text-primary drop-shadow-md"
+                  : "text-muted-foreground hover:text-foreground hover:scale-110"
+              )}
+              aria-label={item.name}
+            >
+              {isActive && (
+                <div className="absolute inset-0 rounded-xl bg-primary/10 -z-10 animate-pulse" />
+              )}
+              <item.icon className={cn(
+                "size-5 transition-all duration-300",
+                isActive ? "scale-125 drop-shadow-lg" : "scale-100"
+              )} />
+              <span className="truncate max-w-[50px] text-[9px] font-semibold">{item.name}</span>
+            </Link>
+          )
+        })}
+        
+        <div className="h-6 w-px bg-gradient-to-b from-white/20 via-white/10 to-transparent" />
+        
+        <button
+          onClick={handleLogout}
+          className={cn(
+            "relative flex flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-2 transition-all duration-300 hover:bg-white/10",
+            "text-muted-foreground hover:text-foreground hover:scale-110"
+          )}
+          aria-label="Logout"
+          title="Logout"
+        >
+          <LogOut className="size-5 transition-all duration-300" />
+          <span className="truncate max-w-[50px] text-[9px] font-semibold">Logout</span>
+        </button>
+      </nav>
     </>
   )
 }

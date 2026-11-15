@@ -126,23 +126,23 @@ export default function SignupPage({ onSwitchToLogin }: { onSwitchToLogin?: () =
 
   return (
     <div className="space-y-4">
-      <Button variant="ghost" className="mb-4" onClick={() => onSwitchToLogin ? onSwitchToLogin() : router.push('/login')}>
+      <Button variant="ghost" className="mb-4 text-xs sm:text-sm h-9 sm:h-10" onClick={() => onSwitchToLogin ? onSwitchToLogin() : router.push('/login')}>
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Login
       </Button>
 
       <Card className="border-0 shadow-2xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Create Account</CardTitle>
-          <CardDescription>Join AppointCare today</CardDescription>
+        <CardHeader className="text-center px-4 py-6 sm:px-6 sm:py-8">
+          <CardTitle className="text-xl sm:text-2xl">Create Account</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">Join AppointCare today</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 py-6 sm:px-6 sm:py-8">
           <Tabs defaultValue="patient">
-            <TabsList className="mb-6 grid w-full grid-cols-2">
-              <TabsTrigger value="patient" className="flex items-center gap-2">
-                <User className="h-4 w-4" /> Patient
+            <TabsList className="mb-6 grid w-full grid-cols-2 h-10 text-xs sm:text-sm">
+              <TabsTrigger value="patient" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                <User className="h-3 w-3 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Patient</span><span className="sm:hidden">Patient</span>
               </TabsTrigger>
-              <TabsTrigger value="clinic" className="flex items-center gap-2">
-                <Stethoscope className="h-4 w-4" /> Clinic
+              <TabsTrigger value="clinic" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+                <Stethoscope className="h-3 w-3 sm:h-4 sm:w-4" /> <span className="hidden sm:inline">Clinic</span><span className="sm:hidden">Clinic</span>
               </TabsTrigger>
             </TabsList>
 
@@ -241,15 +241,15 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
   }
 
   return (
-    <form onSubmit={(e) => onSubmit(e, 'patient', formData)} className="space-y-4">
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 flex items-center gap-2"><AlertCircle className="h-4 w-4" />{error}</div>}
+    <form onSubmit={(e) => onSubmit(e, 'patient', formData)} className="space-y-3 sm:space-y-4">
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-2 sm:p-3 text-xs sm:text-sm text-red-600 flex items-center gap-2"><AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" /><span>{error}</span></div>}
 
-      <div className="space-y-2">
-        <Label>Fullname</Label>
+      <div className="space-y-1.5 sm:space-y-2">
+        <Label className="text-xs sm:text-sm">Fullname</Label>
         <div className="relative">
           <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
-            className={`pl-10 ${validationErrors.fullname ? 'border-red-500' : ''}`}
+            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.fullname ? 'border-red-500' : ''}`}
             value={formData.fullname}
             onChange={(e) => handleFieldChange('fullname', e.target.value)}
             autoComplete="name"
@@ -257,16 +257,16 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
             required
           />
         </div>
-        {validationErrors.fullname && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{validationErrors.fullname}</p>}
+        {validationErrors.fullname && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.fullname}</p>}
       </div>
 
-      <div className="space-y-2">
-        <Label>Email</Label>
+      <div className="space-y-1.5 sm:space-y-2">
+        <Label className="text-xs sm:text-sm">Email</Label>
         <div className="relative">
           <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
             type="email"
-            className={`pl-10 ${validationErrors.email ? 'border-red-500' : ''}`}
+            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.email ? 'border-red-500' : ''}`}
             value={formData.email}
             onChange={(e) => handleFieldChange('email', e.target.value)}
             autoComplete="email"
@@ -274,15 +274,15 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
             required
           />
         </div>
-        {validationErrors.email && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{validationErrors.email}</p>}
+        {validationErrors.email && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.email}</p>}
       </div>
 
-      <div className="space-y-2">
-        <Label>Address</Label>
+      <div className="space-y-1.5 sm:space-y-2">
+        <Label className="text-xs sm:text-sm">Address</Label>
         <div className="relative">
           <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
-            className={`pl-10 ${validationErrors.address ? 'border-red-500' : ''}`}
+            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.address ? 'border-red-500' : ''}`}
             value={formData.address}
             onChange={(e) => handleFieldChange('address', e.target.value)}
             autoComplete="street-address"
@@ -290,11 +290,11 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
             required
           />
         </div>
-        {validationErrors.address && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{validationErrors.address}</p>}
+        {validationErrors.address && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.address}</p>}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="patient-phone">Phone number</Label>
+      <div className="space-y-1.5 sm:space-y-2">
+        <Label htmlFor="patient-phone" className="text-xs sm:text-sm">Phone number</Label>
         <div className="relative">
           <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
@@ -305,7 +305,7 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
             maxLength={13}
             title="Enter 09XXXXXXXXX or +639XXXXXXXXX."
             aria-describedby="patient-phone-help"
-            className={`pl-10 ${validationErrors.phone ? 'border-red-500' : ''}`}
+            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.phone ? 'border-red-500' : ''}`}
             value={formData.phone}
             onChange={(e) => handleFieldChange('phone', digitsOnly(e.target.value))}
             autoComplete="tel"
@@ -313,17 +313,17 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
             required
           />
         </div>
-        {validationErrors.phone && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{validationErrors.phone}</p>}
-        <p id="patient-phone-help" className="text-xs text-gray-500">Philippine mobile number: 09XXXXXXXXX or +639XXXXXXXXX.</p>
+        {validationErrors.phone && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.phone}</p>}
+        <p id="patient-phone-help" className="text-[10px] sm:text-xs text-gray-500">Philippine mobile number: 09XXXXXXXXX or +639XXXXXXXXX.</p>
       </div>
 
-      <div className="space-y-2">
-        <Label>Password</Label>
+      <div className="space-y-1.5 sm:space-y-2">
+        <Label className="text-xs sm:text-sm">Password</Label>
         <div className="relative">
           <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
             type="password"
-            className={`pl-10 ${validationErrors.password ? 'border-red-500' : ''}`}
+            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.password ? 'border-red-500' : ''}`}
             value={formData.password}
             onChange={(e) => handleFieldChange('password', e.target.value)}
             autoComplete="new-password"
@@ -342,21 +342,21 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
         {validationErrors.password && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{validationErrors.password}</p>}
       </div>
 
-      <div className="space-y-2">
-        <Label>Confirm Password</Label>
+      <div className="space-y-1.5 sm:space-y-2">
+        <Label className="text-xs sm:text-sm">Confirm Password</Label>
         <Input
           type="password"
-          className={`${validationErrors.confirmPassword ? 'border-red-500' : ''}`}
+          className={`text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.confirmPassword ? 'border-red-500' : ''}`}
           value={formData.confirmPassword}
           onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
           autoComplete="new-password"
           placeholder="••••••"
           required
         />
-        {validationErrors.confirmPassword && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{validationErrors.confirmPassword}</p>}
+        {validationErrors.confirmPassword && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.confirmPassword}</p>}
       </div>
 
-      <Button type="submit" className="w-full" disabled={loading || Object.keys(validationErrors).length > 0}>
+      <Button type="submit" className="w-full h-9 sm:h-10 text-xs sm:text-sm" disabled={loading || Object.keys(validationErrors).length > 0}>
         {loading ? 'Creating Account...' : 'Sign Up'}
       </Button>
     </form>
@@ -444,15 +444,15 @@ function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit
   }
 
   return (
-    <form onSubmit={(e) => onSubmit(e, 'clinic', formData)} className="space-y-4">
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 flex items-center gap-2"><AlertCircle className="h-4 w-4" />{error}</div>}
+    <form onSubmit={(e) => onSubmit(e, 'clinic', formData)} className="space-y-3 sm:space-y-4">
+      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-2 sm:p-3 text-xs sm:text-sm text-red-600 flex items-center gap-2"><AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" /><span>{error}</span></div>}
 
-      <div className="space-y-2">
-        <Label>Clinic Name</Label>
+      <div className="space-y-1.5 sm:space-y-2">
+        <Label className="text-xs sm:text-sm">Clinic Name</Label>
         <div className="relative">
           <Stethoscope className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
-            className={`pl-10 ${validationErrors.clinicName ? 'border-red-500' : ''}`}
+            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.clinicName ? 'border-red-500' : ''}`}
             value={formData.clinicName}
             onChange={(e) => handleFieldChange('clinicName', e.target.value)}
             autoComplete="organization"
@@ -460,16 +460,16 @@ function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit
             required
           />
         </div>
-        {validationErrors.clinicName && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{validationErrors.clinicName}</p>}
+        {validationErrors.clinicName && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.clinicName}</p>}
       </div>
 
-      <div className="space-y-2">
-        <Label>Email</Label>
+      <div className="space-y-1.5 sm:space-y-2">
+        <Label className="text-xs sm:text-sm">Email</Label>
         <div className="relative">
           <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
             type="email"
-            className={`pl-10 ${validationErrors.email ? 'border-red-500' : ''}`}
+            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.email ? 'border-red-500' : ''}`}
             value={formData.email}
             onChange={(e) => handleFieldChange('email', e.target.value)}
             autoComplete="email"
@@ -477,15 +477,15 @@ function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit
             required
           />
         </div>
-        {validationErrors.email && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{validationErrors.email}</p>}
+        {validationErrors.email && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.email}</p>}
       </div>
 
-      <div className="space-y-2">
-        <Label>Address</Label>
+      <div className="space-y-1.5 sm:space-y-2">
+        <Label className="text-xs sm:text-sm">Address</Label>
         <div className="relative">
           <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
-            className={`pl-10 ${validationErrors.address ? 'border-red-500' : ''}`}
+            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.address ? 'border-red-500' : ''}`}
             value={formData.address}
             onChange={(e) => handleFieldChange('address', e.target.value)}
             autoComplete="street-address"
@@ -493,11 +493,11 @@ function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit
             required
           />
         </div>
-        {validationErrors.address && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{validationErrors.address}</p>}
+        {validationErrors.address && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.address}</p>}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="clinic-phone">Phone number</Label>
+      <div className="space-y-1.5 sm:space-y-2">
+        <Label htmlFor="clinic-phone" className="text-xs sm:text-sm">Phone number</Label>
         <div className="relative">
           <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
@@ -508,7 +508,7 @@ function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit
             maxLength={13}
             title="Enter 09XXXXXXXXX or +639XXXXXXXXX."
             aria-describedby="clinic-phone-help"
-            className={`pl-10 ${validationErrors.phone ? 'border-red-500' : ''}`}
+            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.phone ? 'border-red-500' : ''}`}
             value={formData.phone}
             onChange={(e) => handleFieldChange('phone', digitsOnly(e.target.value))}
             autoComplete="tel"
@@ -516,17 +516,17 @@ function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit
             required
           />
         </div>
-        {validationErrors.phone && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{validationErrors.phone}</p>}
-        <p id="clinic-phone-help" className="text-xs text-gray-500">Philippine mobile number: 09XXXXXXXXX or +639XXXXXXXXX.</p>
+        {validationErrors.phone && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.phone}</p>}
+        <p id="clinic-phone-help" className="text-[10px] sm:text-xs text-gray-500">Philippine mobile number: 09XXXXXXXXX or +639XXXXXXXXX.</p>
       </div>
 
-      <div className="space-y-2">
-        <Label>Password</Label>
+      <div className="space-y-1.5 sm:space-y-2">
+        <Label className="text-xs sm:text-sm">Password</Label>
         <div className="relative">
           <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
             type="password"
-            className={`pl-10 ${validationErrors.password ? 'border-red-500' : ''}`}
+            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.password ? 'border-red-500' : ''}`}
             value={formData.password}
             onChange={(e) => handleFieldChange('password', e.target.value)}
             autoComplete="new-password"
@@ -536,30 +536,30 @@ function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit
         </div>
         {formData.password && (
           <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-[10px] sm:text-xs">
               <div className={`h-2 flex-1 rounded-full ${getPasswordStrengthColor(passwordStrength)}`}></div>
               <span className="capitalize text-gray-600">{passwordStrength}</span>
             </div>
           </div>
         )}
-        {validationErrors.password && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{validationErrors.password}</p>}
+        {validationErrors.password && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.password}</p>}
       </div>
 
-      <div className="space-y-2">
-        <Label>Confirm Password</Label>
+      <div className="space-y-1.5 sm:space-y-2">
+        <Label className="text-xs sm:text-sm">Confirm Password</Label>
         <Input
           type="password"
-          className={`${validationErrors.confirmPassword ? 'border-red-500' : ''}`}
+          className={`text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.confirmPassword ? 'border-red-500' : ''}`}
           value={formData.confirmPassword}
           onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
           autoComplete="new-password"
           placeholder="••••••"
           required
         />
-        {validationErrors.confirmPassword && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{validationErrors.confirmPassword}</p>}
+        {validationErrors.confirmPassword && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.confirmPassword}</p>}
       </div>
 
-      <Button type="submit" className="w-full" disabled={loading || Object.keys(validationErrors).length > 0}>
+      <Button type="submit" className="w-full h-9 sm:h-10 text-xs sm:text-sm" disabled={loading || Object.keys(validationErrors).length > 0}>
         {loading ? 'Creating Account...' : 'Register Clinic'}
       </Button>
     </form>

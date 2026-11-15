@@ -325,26 +325,26 @@ export default function ClinicAppointments() {
       return new Date(first.scheduled_at).getTime() - new Date(second.scheduled_at).getTime()
     })
 
-  if (loading) return <div className="text-center py-12 text-muted-foreground">Loading appointment management...</div>
+  if (loading) return <div className="text-center py-8 sm:py-12 text-xs sm:text-sm text-muted-foreground">Loading appointment management...</div>
 
   return (
-    <div className="space-y-7">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-6 sm:space-y-7">
+      <header className="flex flex-col gap-4 sm:gap-6">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Care requests & schedule</p>
-          <h1 className="mt-1 text-3xl font-bold text-emerald-950">Appointment management</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="text-[10px] sm:text-xs md:text-sm font-medium text-emerald-700">Care requests & schedule</p>
+          <h1 className="mt-1 text-2xl sm:text-3xl md:text-4xl font-bold text-emerald-950">Appointment management</h1>
+          <p className="mt-2 text-xs sm:text-sm text-muted-foreground">
             Review incoming requests with Schedule IDs, reassign unavailable doctors, and trigger automated multi-channel notifications.
           </p>
         </div>
 
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:gap-3">
           <div className="flex items-center gap-1">
             <select
               aria-label="Filter appointments by day of month"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="h-9 w-full rounded-md border bg-background px-3 text-sm sm:w-40"
+              className="h-9 sm:h-10 w-full sm:w-40 rounded-md border bg-background px-2 sm:px-3 text-xs sm:text-sm"
             >
               <option value="">All days</option>
               {Array.from({ length: 30 }, (_, i) => i + 1).map((day) => (
@@ -352,19 +352,19 @@ export default function ClinicAppointments() {
               ))}
             </select>
           </div>
-          <div className="relative w-full sm:w-72">
+          <div className="relative w-full sm:flex-1 sm:max-w-sm">
             <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
             <Input
               placeholder="Search by SCH- ID or patient..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 text-xs sm:text-sm h-9 sm:h-10"
             />
           </div>
         </div>
       </header>
 
-      <div className="grid gap-4">
+      <div className="grid gap-3 sm:gap-4">
         {filteredAppointments.map((apt) => {
           const scheduleId = formatScheduleId(apt.id)
           const isDoctorUnavailable = apt.doctor && apt.doctor.is_available === false && apt.status !== 'cancelled' && apt.status !== 'completed'
@@ -376,8 +376,8 @@ export default function ClinicAppointments() {
                 isDoctorUnavailable ? 'border-amber-300 bg-amber-50/25 shadow-sm' : ''
               }`}
             >
-              <CardContent className="p-6">
-                <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+              <CardContent className="p-3 sm:p-4 md:p-6">
+                <div className="flex flex-col justify-between gap-3 sm:gap-5 lg:flex-row lg:items-center">
                   <div className="min-w-0 flex-1 space-y-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 font-bold text-sm">

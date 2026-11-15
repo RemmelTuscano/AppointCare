@@ -247,18 +247,18 @@ export default function ClinicDoctors() {
     setUpdatingDoctorId(null)
   }
 
-  if (loading) return <div className="py-12 text-center text-muted-foreground">Loading doctors...</div>
+  if (loading) return <div className="py-8 sm:py-12 text-center text-xs sm:text-sm text-muted-foreground">Loading doctors...</div>
 
   const availableDoctors = doctors.filter((doctor) => doctor.is_available).length
   const unavailableDoctors = doctors.length - availableDoctors
 
   return (
-    <div className="space-y-7">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div className="space-y-6 sm:space-y-7">
+      <div className="flex flex-col justify-between gap-4 sm:gap-6">
         <div>
-          <p className="text-sm font-medium text-emerald-700">Clinic workspace</p>
-          <h1 className="mt-1 text-3xl font-bold text-emerald-950">Clinic overview</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Manage your clinic profile, care team, and booking availability.</p>
+          <p className="text-[10px] sm:text-xs md:text-sm font-medium text-emerald-700">Clinic workspace</p>
+          <h1 className="mt-1 text-2xl sm:text-3xl md:text-4xl font-bold text-emerald-950">Clinic overview</h1>
+          <p className="mt-2 text-xs sm:text-sm text-muted-foreground">Manage your clinic profile, care team, and booking availability.</p>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
@@ -274,14 +274,14 @@ export default function ClinicDoctors() {
             setNewDoctor({ name: '', specialization: '' })
             setMessage(null)
           }}>
-            <Button>
-              <Plus className="mr-2 size-4" /> Add doctor
+            <Button className="h-9 sm:h-10 text-xs sm:text-sm">
+              <Plus className="mr-2 size-3 sm:size-4" /> Add doctor
             </Button>
           </DialogTrigger>
-          <DialogContent>
-            <div className="flex items-start justify-between gap-4">
+          <DialogContent className="w-[95vw] sm:w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-2 sm:gap-4">
               <DialogHeader>
-                <DialogTitle>{editingDoctorId ? 'Edit Doctor' : 'Add New Doctor'}</DialogTitle>
+                <DialogTitle className="text-base sm:text-lg">{editingDoctorId ? 'Edit Doctor' : 'Add New Doctor'}</DialogTitle>
               </DialogHeader>
               <button
                 type="button"

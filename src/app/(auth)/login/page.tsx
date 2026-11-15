@@ -105,22 +105,23 @@ export default function LoginPage({ onSwitchToSignup }: { onSwitchToSignup?: () 
       <button
         type="button"
         onClick={() => router.push('/')}
-        className="mb-4 inline-flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-[#27684e] transition hover:bg-[#dff0df] hover:text-[#174c40]"
+        className="mb-4 inline-flex items-center gap-2 rounded-md px-2 py-2 text-xs sm:text-sm font-medium text-[#27684e] transition hover:bg-[#dff0df] hover:text-[#174c40]"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to home
+        <span className="hidden sm:inline">Back to home</span>
+        <span className="sm:hidden">Back</span>
       </button>
       <Card className="border border-[#c8dfca] bg-[#fafffa] shadow-[0_24px_70px_rgba(23,76,64,0.16)]">
-      <CardHeader className="space-y-1 text-center">
+      <CardHeader className="space-y-1 text-center px-4 py-6 sm:px-6 sm:py-8">
         <div className="mb-4 flex justify-center">
-          <div className="rounded-xl bg-[#174c40] p-3 shadow-lg shadow-[#174c40]/20">
-            <Stethoscope className="h-8 w-8 text-white" />
+          <div className="rounded-xl bg-[#174c40] p-2 sm:p-3 shadow-lg shadow-[#174c40]/20">
+            <Stethoscope className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
           </div>
         </div>
-        <CardTitle className="text-2xl font-bold text-[#174c40]">AppointCare</CardTitle>
-        <CardDescription className="text-[#587269]">Sign in to manage your appointments</CardDescription>
+        <CardTitle className="text-xl sm:text-2xl font-bold text-[#174c40]">AppointCare</CardTitle>
+        <CardDescription className="text-xs sm:text-sm text-[#587269]">Sign in to manage your appointments</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="px-4 py-6 sm:px-6 sm:py-8">
         <LoginForm
           role={role}
           onRoleChange={setRole}
@@ -134,7 +135,7 @@ export default function LoginPage({ onSwitchToSignup }: { onSwitchToSignup?: () 
           onGoogleLogin={handleGoogleLogin}
         />
 
-        <div className="mt-6 flex justify-center text-sm text-gray-600">
+        <div className="mt-6 flex justify-center text-xs sm:text-sm text-gray-600">
           <div>
             Don&apos;t have an account?{' '}
             <button
@@ -169,16 +170,16 @@ function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword,
   const [showPassword, setShowPassword] = useState(false)
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      {error && <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+    <form onSubmit={onSubmit} className="space-y-3 sm:space-y-4">
+      {error && <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs sm:text-sm text-red-700">{error}</div>}
       <div className="space-y-2">
-        <Label htmlFor="login-role">Sign in as</Label>
+        <Label htmlFor="login-role" className="text-xs sm:text-sm">Sign in as</Label>
         <div className="relative">
           <select
             id="login-role"
             value={role}
             onChange={(event) => onRoleChange(event.target.value as LoginRole)}
-            className="flex h-10 w-full appearance-none rounded-md border border-[#c8dfca] bg-white px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4f9a6d] focus-visible:ring-offset-2"
+            className="flex h-10 w-full appearance-none rounded-md border border-[#c8dfca] bg-white px-3 py-2 text-xs sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4f9a6d] focus-visible:ring-offset-2"
           >
             <option value="patient">Patient</option>
             <option value="clinic">Clinic</option>
@@ -192,7 +193,7 @@ function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword,
         </div>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email" className="text-xs sm:text-sm">Email</Label>
         <div className="relative">
           <Mail className="absolute left-3 top-3 h-4 w-4 text-[#587269]" />
           <Input
@@ -201,7 +202,7 @@ function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword,
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="pl-10"
+            className="pl-10 text-xs sm:text-sm"
             autoComplete="email"
             required
           />
@@ -209,7 +210,7 @@ function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword,
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password" className="text-xs sm:text-sm">Password</Label>
         <div className="relative">
           <Lock className="absolute left-3 top-3 h-4 w-4 text-[#587269]" />
           <Input
@@ -218,7 +219,7 @@ function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword,
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="pl-10 pr-10"
+            className="pl-10 pr-10 text-xs sm:text-sm"
             autoComplete="current-password"
             required
           />
@@ -234,27 +235,27 @@ function LoginForm({ role, onRoleChange, email, setEmail, password, setPassword,
         </div>
       </div>
 
-      <Button type="submit" className="w-full bg-[#27684e] text-white hover:bg-[#174c40]" disabled={loading}>
+      <Button type="submit" className="w-full h-10 sm:h-11 bg-[#27684e] text-xs sm:text-sm text-white hover:bg-[#174c40]" disabled={loading}>
         {loading ? 'Signing in...' : 'Sign In'}
       </Button>
 
-      <div className="relative my-4">
+      <div className="relative my-3 sm:my-4">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t border-[#d8e8da]" />
         </div>
-        <div className="relative flex justify-center text-xs uppercase">
+        <div className="relative flex justify-center text-[10px] sm:text-xs uppercase">
           <span className="bg-[#fafffa] px-2 text-[#587269]">Or continue with</span>
         </div>
       </div>
 
-      <Button type="button" variant="outline" className="w-full border-[#c8dfca] text-[#27684e] hover:bg-[#eaf5e9]" onClick={onGoogleLogin}>
+      <Button type="button" variant="outline" className="w-full h-10 sm:h-11 border-[#c8dfca] text-xs sm:text-sm text-[#27684e] hover:bg-[#eaf5e9]" onClick={onGoogleLogin}>
         <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
         </svg>
-        Google
+        <span className="hidden sm:inline">Google</span>
       </Button>
     </form>
   )

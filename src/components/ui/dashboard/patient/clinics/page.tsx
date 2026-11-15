@@ -287,7 +287,7 @@ export default function PatientClinics() {
         ))}
         {!message && clinics.length === 0 && (
           <Card className="w-full shrink-0">
-            <CardContent className="p-12 text-center text-muted-foreground">
+            <CardContent className="p-6 sm:p-8 md:p-12 text-center text-xs sm:text-sm text-muted-foreground">
               No verified clinics are available yet.
             </CardContent>
           </Card>
@@ -296,27 +296,27 @@ export default function PatientClinics() {
       }
 
       {!loading && selectedClinic && (
-        <section className="space-y-6">
-          <Button variant="ghost" className="px-0 text-emerald-800 hover:bg-transparent hover:text-emerald-950" onClick={() => setSelectedClinic(null)}>
-            <ArrowLeft className="mr-2 size-4" /> Back to clinics
+        <section className="space-y-5 sm:space-y-6">
+          <Button variant="ghost" className="px-0 h-9 sm:h-10 text-xs sm:text-sm text-emerald-800 hover:bg-transparent hover:text-emerald-950" onClick={() => setSelectedClinic(null)}>
+            <ArrowLeft className="mr-2 size-3 sm:size-4" /> Back to clinics
           </Button>
 
-          <div className="border-b border-emerald-100 pb-5">
-            <p className="text-sm font-medium text-emerald-700">Clinic information</p>
-            <h2 className="mt-1 text-3xl font-bold text-emerald-950">{selectedClinic.name}</h2>
-            <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="size-4" /> {selectedClinic.address}
+          <div className="border-b border-emerald-100 pb-4 sm:pb-5">
+            <p className="text-[10px] sm:text-xs md:text-sm font-medium text-emerald-700">Clinic information</p>
+            <h2 className="mt-1 text-2xl sm:text-3xl md:text-4xl font-bold text-emerald-950">{selectedClinic.name}</h2>
+            <div className="mt-2 sm:mt-3 flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+              <MapPin className="size-3 sm:size-4 flex-shrink-0" /> {selectedClinic.address}
             </div>
           </div>
 
           {!bookingStarted ? (
             <Card>
-              <CardHeader>
-                <CardTitle>Choose a doctor</CardTitle>
-                <p className="text-sm text-muted-foreground">Select an available doctor to continue with your appointment request.</p>
+              <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
+                <CardTitle className="text-base sm:text-lg">Choose a doctor</CardTitle>
+                <p className="text-xs sm:text-sm text-muted-foreground">Select an available doctor to continue with your appointment request.</p>
               </CardHeader>
-              <CardContent className="space-y-5">
-                <div className="grid gap-3 sm:grid-cols-2">
+              <CardContent className="space-y-4 sm:space-y-5 px-4 sm:px-6 py-4 sm:py-5">
+                <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2">
                   {doctors.map((doctor) => (
                     <button
                       key={doctor.id}
