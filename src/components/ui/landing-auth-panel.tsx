@@ -36,7 +36,7 @@ export function LandingAuthPanel({ variant = 'header' }: { variant?: 'header' | 
             ? 'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md bg-[#e8cf82] px-2.5 py-2.5 text-xs font-bold text-[#183d3b] shadow-sm transition hover:-translate-y-px hover:bg-[#f0dda0] hover:shadow-md sm:gap-2 sm:px-4 sm:text-sm'
             : 'inline-flex items-center justify-center gap-2 rounded-md bg-[#e8cf82] px-5 py-3.5 font-bold text-[#183d3b] shadow-sm transition hover:-translate-y-px hover:bg-[#f0dda0] hover:shadow-md'}
         >
-          {variant === 'header' ? 'Get started' : 'Create your account'} <ArrowRight className="h-4 w-4" />
+          {variant === 'header' ? 'Create account' : 'Create your account'} <ArrowRight className="h-4 w-4" />
         </button>
       </div>
 

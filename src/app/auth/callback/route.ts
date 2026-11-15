@@ -53,7 +53,7 @@ export async function GET(request: Request) {
             role: userRole,
             email: user.email,
             full_name: user.user_metadata.full_name || user.email,
-            location: user.user_metadata.location || null,
+            address: user.user_metadata.address || null,
             phone: user.user_metadata.phone || null,
           })
         }
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
           await supabase.from('clinics').upsert({
             user_id: user.id,
             name: user.user_metadata.full_name || user.email || 'New clinic',
-            address: user.user_metadata.location || 'Address pending',
+            address: user.user_metadata.address || 'Address pending',
             phone: user.user_metadata.phone || null,
             email: user.email,
           }, { onConflict: 'user_id' })

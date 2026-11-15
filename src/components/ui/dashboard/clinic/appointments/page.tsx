@@ -494,26 +494,16 @@ export default function ClinicAppointments() {
                       </Button>
                     )}
 
-                    {/* Accept / Cancel Buttons */}
+                    {/* Accept / Approve Buttons */}
                     {apt.status === 'pending' && (
-                      <>
-                        <Button 
-                          size="sm" 
-                          disabled={updatingId === apt.id}
-                          onClick={() => setPendingStatusUpdate({ appointment: apt, status: 'confirmed' })}
-                          className="bg-emerald-700 hover:bg-emerald-800"
-                        >
-                          <CheckCircle className="mr-1 size-4" /> {updatingId === apt.id ? 'Updating' : 'Accept'}
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          disabled={updatingId === apt.id}
-                          onClick={() => setPendingStatusUpdate({ appointment: apt, status: 'cancelled' })}
-                        >
-                          <XCircle className="mr-1 size-4" /> Decline
-                        </Button>
-                      </>
+                      <Button 
+                        size="sm" 
+                        disabled={updatingId === apt.id}
+                        onClick={() => setPendingStatusUpdate({ appointment: apt, status: 'confirmed' })}
+                        className="bg-emerald-700 hover:bg-emerald-800"
+                      >
+                        <CheckCircle className="mr-1 size-4" /> {updatingId === apt.id ? 'Updating' : 'Approve'}
+                      </Button>
                     )}
                   </div>
                 </div>

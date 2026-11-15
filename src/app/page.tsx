@@ -70,7 +70,7 @@ export default function Page() {
                     href="#how-it-works"
                     className="inline-flex items-center justify-center gap-2 rounded-md border border-white/35 px-5 py-3.5 font-semibold text-white transition-colors hover:border-white/60 hover:bg-white/10"
                   >
-                    See how it works <ChevronRight className="h-4 w-4" />
+                    Learn more <ChevronRight className="h-4 w-4" />
                   </a>
                 </div>
                 <div className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-sm text-white/75">
