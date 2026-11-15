@@ -308,7 +308,58 @@ export const SERVICES_BY_SPECIALIZATION: Record<string, string[]> = {
     'Vaccination',
     'Chronic Disease Management',
   ],
+
+  // Neurology Variations
+  'Neurology': [
+    'Neurological Checkup',
+    'Headache & Migraine Treatment',
+    'Stroke Risk Assessment',
+    'Seizure Management',
+    'Sleep Disorder Treatment',
+    'Nerve Conduction Study',
+    'Brain MRI Consultation',
+    'Cognitive Assessment',
+  ],
+  'Neurologist': [
+    'Neurological Checkup',
+    'Headache & Migraine Treatment',
+    'Stroke Risk Assessment',
+    'Seizure Management',
+    'Sleep Disorder Treatment',
+    'Nerve Conduction Study',
+    'Brain MRI Consultation',
+    'Cognitive Assessment',
+  ],
+  'Neurosurgery': [
+    'Neurological Checkup',
+    'Headache & Migraine Treatment',
+    'Stroke Risk Assessment',
+    'Seizure Management',
+    'Sleep Disorder Treatment',
+    'Nerve Conduction Study',
+    'Brain MRI Consultation',
+    'Cognitive Assessment',
+  ],
+  'Brain & Nerve': [
+    'Neurological Checkup',
+    'Headache & Migraine Treatment',
+    'Stroke Risk Assessment',
+    'Seizure Management',
+    'Sleep Disorder Treatment',
+    'Nerve Conduction Study',
+    'Brain MRI Consultation',
+    'Cognitive Assessment',
+  ],
 };
+
+// Default services for unknown specializations
+const DEFAULT_SERVICES = [
+  'General Checkup',
+  'Consultation',
+  'Follow-up Visit',
+  'Treatment',
+  'Procedure',
+];
 
 /**
  * Get services for a specific specialization
@@ -316,7 +367,7 @@ export const SERVICES_BY_SPECIALIZATION: Record<string, string[]> = {
  * @returns Array of services offered by that specialization
  */
 export function getServicesBySpecialization(specialization: string | null | undefined): string[] {
-  if (!specialization) return [];
+  if (!specialization) return DEFAULT_SERVICES;
   
   // Try exact match first
   if (specialization in SERVICES_BY_SPECIALIZATION) {
@@ -331,8 +382,8 @@ export function getServicesBySpecialization(specialization: string | null | unde
     }
   }
   
-  // No match found
-  return [];
+  // No match found, return default services
+  return DEFAULT_SERVICES;
 }
 
 /**
