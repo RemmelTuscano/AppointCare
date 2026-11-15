@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ArrowLeft, CalendarDays, CheckCircle2, CircleAlert, Clock3, MapPin, Stethoscope, UserCheck, UserRound, UsersRound } from 'lucide-react'
+import { getServicesBySpecialization } from '@/lib/services'
+import { SERVICES_BY_SPECIALIZATION } from '@/lib/services'
 
 type ClinicDoctor = {
   id: string
@@ -61,6 +63,8 @@ export default function PatientClinics() {
   const [selectedDoctor, setSelectedDoctor] = useState('')
   const [bookingStarted, setBookingStarted] = useState(false)
   const [notes, setNotes] = useState('')
+  const [selectedService, setSelectedService] = useState('')
+  const [availableServices, setAvailableServices] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
   const [isBookingConfirmationOpen, setIsBookingConfirmationOpen] = useState(false)
@@ -101,16 +105,45 @@ export default function PatientClinics() {
     setSelectedDate(undefined)
     setSelectedTime('')
     setNotes('')
+    setSelectedService('')
+    setAvailableServices([])
     setBookingStarted(false)
+  }
+
+  const handleDoctorSelection = (doctorId: string) => {
+    const selected = doctors.find((d) => d.id === doctorId)
+    
+    // Load services based on doctor's specialization only
+    let services: string[] = []
+    
+    if (selected?.specialization) {
+      services = getServicesBySpecialization(selected.specialization)
+      console.log(`[ServiceDebug] Doctor: ${selected.name}, Specialization: "${selected.specialization}", Services:`, services)
+    } else {
+      console.log('[ServiceDebug] Doctor has no specialization assigned')
+    }
+    
+    console.log('[ServiceDebug] Setting services state:', services)
+    
+    setSelectedDoctor(doctorId)
+    setAvailableServices(services)
+    
+    if (services.length > 0) {
+      setSelectedService(services[0])
+      console.log('[ServiceDebug] Pre-selecting first service:', services[0])
+    } else {
+      setSelectedService('')
+      console.log('[ServiceDebug] No services available for this doctor')
+    }
   }
 
   const bookAppointment = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user || !selectedClinic || !selectedDate || !selectedDoctor || !selectedTime) {
+    if (!user || !selectedClinic || !selectedDate || !selectedDoctor || !selectedTime || !selectedService) {
       setBookingResult({
         type: 'error',
         title: 'Appointment request not sent',
-        message: !user ? 'Your session has expired. Please sign in again.' : 'Choose a clinic, doctor, and date before requesting an appointment.',
+        message: !user ? 'Your session has expired. Please sign in again.' : 'Please complete all required fields: clinic, doctor, date, time, and service.',
       })
       return
     }
@@ -132,6 +165,7 @@ export default function PatientClinics() {
           doctorId: selectedDoctor,
           scheduledAt: scheduledAt.toISOString(),
           notes,
+          service: selectedService,
         }),
       })
       bookingPayload = await bookingResponse.json()
@@ -286,7 +320,7 @@ export default function PatientClinics() {
                   {doctors.map((doctor) => (
                     <button
                       key={doctor.id}
-                      onClick={() => setSelectedDoctor(doctor.id)}
+                      onClick={() => handleDoctorSelection(doctor.id)}
                       className={cn(
                         'rounded-md border p-4 text-left transition-colors focus:outline-none focus:ring-3 focus:ring-emerald-100',
                         selectedDoctor === doctor.id
@@ -359,6 +393,29 @@ export default function PatientClinics() {
                   </section>
                 </div>
                 <div>
+                  <label htmlFor="appointment-service" className="mb-3 block font-medium text-emerald-950">
+                    Service <span className="text-destructive">*</span>
+                  </label>
+                  {availableServices.length > 0 ? (
+                    <select
+                      id="appointment-service"
+                      name="service"
+                      className="w-full rounded-md border border-input bg-white px-3 py-2.5 outline-none focus:border-emerald-500 focus:ring-3 focus:ring-emerald-100"
+                      value={selectedService}
+                      onChange={(e) => setSelectedService(e.target.value)}
+                    >
+                      <option value="">-- Select a service --</option>
+                      {availableServices.map((service) => (
+                        <option key={service} value={service}>{service}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full rounded-md border border-input bg-muted px-3 py-2.5 text-muted-foreground">
+                      Select a doctor first to see available services
+                    </div>
+                  )}
+                </div>
+                <div>
                   <label htmlFor="appointment-notes" className="mb-3 block font-medium text-emerald-950">Notes (optional)</label>
                   <textarea
                     id="appointment-notes"
@@ -371,7 +428,7 @@ export default function PatientClinics() {
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Button variant="outline" className="sm:flex-1" onClick={() => setBookingStarted(false)}>Back to doctor selection</Button>
-                  <Button className="sm:flex-1" disabled={!selectedDate || !selectedTime} onClick={() => setIsBookingConfirmationOpen(true)}>
+                  <Button className="sm:flex-1" disabled={!selectedDate || !selectedTime || !selectedService} onClick={() => setIsBookingConfirmationOpen(true)}>
                     <CheckCircle2 className="mr-2 size-4" /> Review request
                   </Button>
                 </div>
@@ -404,6 +461,10 @@ export default function PatientClinics() {
               <div>
                 <dt className="text-xs font-semibold uppercase text-muted-foreground">Time</dt>
                 <dd className="mt-1 font-medium text-foreground">{selectedTime.replace(/^0/, '')}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold uppercase text-muted-foreground">Service</dt>
+                <dd className="mt-1 font-medium text-foreground">{selectedService}</dd>
               </div>
               {notes.trim() && (
                 <div className="sm:col-span-2">

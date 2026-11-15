@@ -4,6 +4,16 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
+const MEDICAL_SPECIALTIES = [
+  'General Practice',
+  'Pediatrics',
+  'Obstetrics & Gynecology',
+  'Cardiology',
+  'Dermatology',
+  'Orthopedics',
+  'Dentistry'
+]
+
 async function updateOwnProfile(formData: FormData) {
   'use server'
 
@@ -13,10 +23,24 @@ async function updateOwnProfile(formData: FormData) {
   if (!user) redirect('/login')
 
   const fullName = String(formData.get('fullName') || '').trim()
-  const location = String(formData.get('location') || '').trim()
+  const address = String(formData.get('address') || '').trim()
   const phone = String(formData.get('phone') || '').trim()
-  const { error } = await supabase.from('profiles').update({ full_name: fullName || null, location: location || null, phone: phone || null, updated_at: new Date().toISOString() }).eq('id', user.id)
-  if (error) return
+  const preferredSpecialty = String(formData.get('preferredSpecialty') || '').trim() || null
+  const appointmentNotes = String(formData.get('appointmentNotes') || '').trim() || null
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      full_name: fullName || null,
+      address: address || null,
+      phone: phone || null,
+      preferred_specialty: preferredSpecialty,
+      appointment_notes: appointmentNotes,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', user.id)
+
+  if (error) console.error('Update error:', error)
 
   revalidatePath('/patient/account')
   revalidatePath('/patient/account/edit')
@@ -28,13 +52,54 @@ export default async function EditPatientProfilePage() {
   if (!supabase) redirect('/login')
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-  const { data: profile } = await supabase.from('profiles').select('full_name, email, phone, location').eq('id', user.id).single()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, email, phone, address, preferred_specialty, appointment_notes')
+    .eq('id', user.id)
+    .single()
 
   return (
     <div className="mx-auto max-w-2xl space-y-7 pb-10">
       <Link href="/patient/account" className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 hover:text-emerald-900"><ArrowLeft className="h-4 w-4" /> Back to account</Link>
-      <div><p className="text-sm font-medium text-emerald-700">Your profile</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-emerald-950">Edit profile</h1><p className="mt-2 text-sm text-gray-600">Keep your contact information current for appointment reminders and SMS updates.</p></div>
-      <form action={updateOwnProfile} className="border border-emerald-100 bg-white p-6 shadow-sm"><div className="grid gap-5"><Field label="Full name" name="fullName" defaultValue={profile?.full_name || ''} /><label className="space-y-2 text-sm font-medium text-emerald-950">Email<input value={profile?.email || user.email || ''} readOnly className="flex h-10 w-full rounded-md border border-emerald-100 bg-gray-50 px-3 py-2 font-normal text-gray-500" /></label><Field label="Phone number" name="phone" type="tel" defaultValue={profile?.phone || ''} /><Field label="Location" name="location" defaultValue={profile?.location || ''} /></div><div className="mt-6 flex justify-end"><button type="submit" className="inline-flex items-center gap-2 rounded-md bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900"><Save className="h-4 w-4" />Save profile</button></div></form>
+      <div><p className="text-sm font-medium text-emerald-700">Your profile</p><h1 className="mt-1 text-3xl font-bold tracking-tight text-emerald-950">Edit profile</h1><p className="mt-2 text-sm text-gray-600">Keep your contact information current and specify your appointment preferences.</p></div>
+      <form action={updateOwnProfile} className="border border-emerald-100 bg-white p-6 shadow-sm">
+        <div className="grid gap-5">
+          <Field label="Full name" name="fullName" defaultValue={profile?.full_name || ''} />
+          <label className="space-y-2 text-sm font-medium text-emerald-950">Email<input value={profile?.email || user.email || ''} readOnly className="flex h-10 w-full rounded-md border border-emerald-100 bg-gray-50 px-3 py-2 font-normal text-gray-500" /></label>
+          <Field label="Phone number" name="phone" type="tel" defaultValue={profile?.phone || ''} />
+          <Field label="Address" name="address" defaultValue={profile?.address || ''} />
+          
+          {/* Specialty Dropdown */}
+          <label className="space-y-2 text-sm font-medium text-emerald-950">
+            Preferred Medical Specialty
+            <select
+              name="preferredSpecialty"
+              defaultValue={profile?.preferred_specialty || ''}
+              className="flex h-10 w-full rounded-md border border-emerald-100 bg-white px-3 py-2 font-normal outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            >
+              <option value="">-- Select a specialty --</option>
+              {MEDICAL_SPECIALTIES.map((specialty) => (
+                <option key={specialty} value={specialty}>
+                  {specialty}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {/* Appointment Notes Textarea */}
+          <label className="space-y-2 text-sm font-medium text-emerald-950">
+            Appointment Notes
+            <textarea
+              name="appointmentNotes"
+              defaultValue={profile?.appointment_notes || ''}
+              placeholder="Add any relevant medical notes or concerns for your appointment..."
+              rows={4}
+              className="flex w-full rounded-md border border-emerald-100 bg-white px-3 py-2 font-normal outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 resize-none"
+            />
+          </label>
+        </div>
+        <div className="mt-6 flex justify-end"><button type="submit" className="inline-flex items-center gap-2 rounded-md bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900"><Save className="h-4 w-4" />Save profile</button></div>
+      </form>
     </div>
   )
 }

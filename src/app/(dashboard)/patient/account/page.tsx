@@ -3,9 +3,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { ChangePasswordDialog } from '@/components/ui/change-password-dialog'
 import { DeleteAccountDialog } from '@/components/ui/delete-account-dialog'
-import { KeyRound, MapPin, UserRound } from 'lucide-react'
+import { KeyRound, MapPin, UserRound, Stethoscope } from 'lucide-react'
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
+
+const MEDICAL_SPECIALTIES = [
+  'General Practice',
+  'Pediatrics',
+  'Obstetrics & Gynecology',
+  'Cardiology',
+  'Dermatology',
+  'Orthopedics',
+  'Dentistry'
+]
 
 async function updateNotificationPreferences(formData: FormData) {
   'use server'
@@ -67,8 +77,8 @@ export default async function AccountPage() {
                 <p className="break-all text-lg text-emerald-950">{user?.email}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Location</p>
-                <p className="text-lg text-emerald-950">{profile?.location || 'Not set'}</p>
+                <p className="text-sm font-medium text-muted-foreground">Address</p>
+                <p className="text-lg text-emerald-950">{profile?.address || 'Not set'}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Phone</p>
@@ -76,6 +86,27 @@ export default async function AccountPage() {
               </div>
             </div>
             <Button asChild className="mt-4"><Link href="/patient/account/edit">Edit Profile</Link></Button>
+          </CardContent>
+        </Card>
+
+        {/* Appointment Notes & Specialty Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-emerald-950"><Stethoscope className="size-5 text-emerald-700" />Appointment Information</CardTitle>
+            <CardDescription>Specify your medical specialty needs and add notes for your appointment</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Preferred Specialty</p>
+                <p className="text-lg text-emerald-950">{profile?.preferred_specialty || 'Not selected'}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Appointment Notes</p>
+                <p className="text-base text-emerald-950 whitespace-pre-wrap">{profile?.appointment_notes || 'No notes added'}</p>
+              </div>
+            </div>
+            <Button asChild className="mt-4"><Link href="/patient/account/edit">Edit Appointment Info</Link></Button>
           </CardContent>
         </Card>
 
