@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -17,6 +18,7 @@ import {
   Building2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
 interface SidebarProps {
@@ -49,6 +51,7 @@ const navigation = {
 }
 
 export function Sidebar({ role, userName }: SidebarProps) {
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -111,7 +114,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
           <Button 
             variant="ghost"
             className="w-full justify-start gap-2 text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            onClick={handleLogout}
+            onClick={() => setLogoutDialogOpen(true)}
           >
             <LogOut className="h-4 w-4" />
             Logout
@@ -153,7 +156,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
         <div className="h-6 w-px bg-gradient-to-b from-white/20 via-white/10 to-transparent" />
         
         <button
-          onClick={handleLogout}
+          onClick={() => setLogoutDialogOpen(true)}
           className={cn(
             "relative flex flex-col items-center justify-center gap-0.5 rounded-xl px-2.5 py-2 transition-all duration-300 hover:bg-white/10",
             "text-muted-foreground hover:text-foreground hover:scale-110"
@@ -165,6 +168,23 @@ export function Sidebar({ role, userName }: SidebarProps) {
           <span className="truncate max-w-[50px] text-[9px] font-semibold">Logout</span>
         </button>
       </nav>
+
+      <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+        <DialogContent role="dialog" aria-modal="true" aria-labelledby="logout-dialog-title">
+          <DialogHeader>
+            <DialogTitle id="logout-dialog-title">Log out?</DialogTitle>
+            <DialogDescription>Are you sure you want to log out of your account?</DialogDescription>
+          </DialogHeader>
+          <div className="mt-6 flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setLogoutDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleLogout}>
+              Log out
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
