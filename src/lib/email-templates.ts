@@ -241,7 +241,8 @@ export function getCancelledEmailHtml({
   doctorName,
   scheduledAt,
   reason,
-}: EmailBaseProps & { reason?: string | null }) {
+  cancellationRequestApproved,
+}: EmailBaseProps & { reason?: string | null; cancellationRequestApproved?: boolean }) {
   const formattedDate = format(new Date(scheduledAt), 'EEEE, MMMM d, yyyy')
   const formattedTime = format(new Date(scheduledAt), 'h:mm a')
 
@@ -256,19 +257,21 @@ export function getCancelledEmailHtml({
   <div class="container">
     <div class="header" style="background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);">
       <h1 class="logo">AppointCare</h1>
-      <p class="tagline" style="color: #fecaca;">Appointment Request Update</p>
+      <p class="tagline" style="color: #fecaca;">Appointment Update</p>
     </div>
     <div class="body-content">
       <div style="text-align: center; margin-bottom: 16px;">
-        <span class="badge badge-cancelled">Request Declined</span>
+        <span class="badge badge-cancelled">${cancellationRequestApproved ? 'Cancellation Approved' : 'Request Declined'}</span>
       </div>
 
       <h2 style="font-size: 20px; color: #7f1d1d; margin-top: 0; text-align: center;">
-        Your Appointment Request Was Declined
+        ${cancellationRequestApproved ? 'Your Appointment Cancellation Was Approved' : 'Your Appointment Request Was Declined'}
       </h2>
 
       <p>Hello <strong>${patientName || 'Valued Patient'}</strong>,</p>
-      <p>We're sorry, but <strong>${clinicName || 'the clinic'}</strong> could not accommodate your appointment request. You can book another time or clinic from your AppointCare dashboard.</p>
+      <p>${cancellationRequestApproved
+        ? `<strong>${clinicName || 'The clinic'}</strong> approved your cancellation request. Your appointment has been cancelled.`
+        : `We're sorry, but <strong>${clinicName || 'the clinic'}</strong> could not accommodate your appointment request. You can book another time or clinic from your AppointCare dashboard.`}</p>
 
       <table class="details-table">
         <tr>
@@ -276,7 +279,7 @@ export function getCancelledEmailHtml({
           <td class="value-cell" style="font-family: monospace;">${scheduleId}</td>
         </tr>
         <tr>
-          <td class="label-cell">Requested Date</td>
+          <td class="label-cell">Appointment Date</td>
           <td class="value-cell">${formattedDate} at ${formattedTime}</td>
         </tr>
         <tr>

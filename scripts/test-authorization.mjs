@@ -172,10 +172,13 @@ test('notification dispatch uses trusted appointment data and checks ownership a
     'next/server': { NextResponse: { json: (body, options = {}) => ({ body, status: options.status || 200 }) } },
     '@/lib/supabase/server': { createClient: async () => session(user) },
     '@/lib/supabase/admin': { createAdminClient: () => admin },
-    '@/lib/notifications': { dispatchAutomatedNotifications: async (payload) => {
-      sent = payload
-      return { scheduleId: 'schedule', email: {}, sms: {}, inAppNotifications: [] }
-    } },
+    '@/lib/notifications': {
+      dispatchAutomatedNotifications: async (payload) => {
+        sent = payload
+        return { scheduleId: 'schedule', email: {}, sms: {}, inAppNotifications: [] }
+      },
+      storeInAppNotifications: async () => {},
+    },
   })
   const request = (body) => ({ json: async () => body })
   assert.equal((await POST(request({ appointmentId: 'a', type: 'created' }))).status, 401)
@@ -199,6 +202,15 @@ test('notification dispatch uses trusted appointment data and checks ownership a
   assert.equal((await POST(request({ appointmentId: 'a', type: 'doctor_unavailable' }))).status, 403)
   appointment.scheduled_at = new Date(Date.now() + 60_000).toISOString()
   assert.equal((await POST(request({ appointmentId: 'a', type: 'doctor_unavailable' }))).status, 200)
+  appointment.status = 'cancelled'
+  appointment.cancellation_request_status = 'approved'
+  assert.equal((await POST(request({ appointmentId: 'a', type: 'cancelled' }))).status, 200)
+  assert.equal(sent.cancellationRequestApproved, true)
+  assert.equal(sent.reason, undefined)
+  appointment.cancellation_request_status = null
+  assert.equal((await POST(request({ appointmentId: 'a', type: 'cancelled', cancellationRequestApproved: true }))).status, 200)
+  assert.equal(sent.cancellationRequestApproved, false)
+  assert.match(sent.reason, /could not accommodate/)
   appointment = null
   assert.equal((await POST(request({ appointmentId: 'missing', type: 'created' }))).status, 404)
 })

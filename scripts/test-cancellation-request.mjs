@@ -17,8 +17,17 @@ function fixture() {
   const state = {
     user: { id: 'patient' },
     clinic: { id: 'clinic', user_id: 'owner' },
-    appointment: { id: appointmentId, patient_id: 'patient', clinic_id: 'clinic', status: 'confirmed', cancellation_request_status: null, cancellation_request_reason: null },
+    appointment: {
+      id: appointmentId, patient_id: 'patient', clinic_id: 'clinic', status: 'confirmed',
+      scheduled_at: '2026-12-01T10:00:00Z', cancellation_request_status: null, cancellation_request_reason: null,
+      patient: { full_name: 'Patient', email: 'patient@example.test', phone: '+639171234567' },
+      clinic: { user_id: 'owner', name: 'Clinic', address: 'Address', phone: null },
+      doctor: { name: 'Doctor', specialization: null },
+    },
     dbError: null,
+    notifications: [],
+    notificationFailure: false,
+    storageFailure: false,
   }
   const admin = {
     from(table) {
@@ -34,12 +43,18 @@ function fixture() {
           filters.push((row) => row.cancellation_request_status === null || row.cancellation_request_status === 'declined')
           return query
         },
-        async maybeSingle() {
-          if (state.dbError) return { data: null, error: state.dbError }
+        maybeSingle() {
+          if (state.dbError) {
+            const result = Promise.resolve({ data: null, error: state.dbError })
+            result.overrideTypes = () => result
+            return result
+          }
           const row = table === 'clinics' ? state.clinic : state.appointment
-          if (!row || !filters.every((filter) => filter(row))) return { data: null, error: null }
-          if (update) Object.assign(row, update)
-          return { data: { ...row }, error: null }
+          const matches = row && filters.every((filter) => filter(row))
+          if (matches && update) Object.assign(row, update)
+          const result = Promise.resolve({ data: matches ? { ...row } : null, error: null })
+          result.overrideTypes = () => result
+          return result
         },
       }
       return query
@@ -50,6 +65,16 @@ function fixture() {
     'next/server': { NextResponse: { json: (body, options = {}) => ({ body, status: options.status || 200 }) } },
     '@/lib/supabase/admin': { createAdminClient: () => admin },
     '@/lib/supabase/server': { createClient: async () => ({ auth: { getUser: async () => ({ data: { user: state.user }, error: null }) } }) },
+    '@/lib/notifications': {
+      dispatchAutomatedNotifications: async (payload) => {
+        state.notifications.push(payload)
+        if (state.notificationFailure) throw new Error('provider unavailable')
+        return { email: { sent: true }, sms: { sent: true }, scheduleId: 'schedule', inAppNotifications: [] }
+      },
+      storeInAppNotifications: async () => {
+        if (state.storageFailure) throw new Error('storage unavailable')
+      },
+    },
   }
   vm.runInNewContext(code, {
     module: loaded, exports: loaded.exports, console: { error() {} },
@@ -85,6 +110,7 @@ test('request stays pending until the owning clinic approves it', async () => {
   assert.equal((await POST(submission('  Unable to attend  '))).status, 200)
   assert.equal(state.appointment.cancellation_request_reason, 'Unable to attend')
   assert.equal(state.appointment.status, 'confirmed')
+  assert.equal(state.notifications.length, 0)
   assert.equal((await POST(submission('duplicate'))).status, 409)
   assert.equal((await PATCH(decision('approved'))).status, 403)
   state.user = { id: 'other-owner' }
@@ -93,10 +119,18 @@ test('request stays pending until the owning clinic approves it', async () => {
   state.clinic.id = 'other-clinic'
   assert.equal((await PATCH(decision('approved'))).status, 409)
   state.clinic.id = 'clinic'
-  assert.equal((await PATCH(decision('approved'))).status, 200)
+  const approval = await PATCH(decision('approved'))
+  assert.equal(approval.status, 200)
   assert.equal(state.appointment.status, 'cancelled')
   assert.equal(state.appointment.cancellation_request_status, 'approved')
+  assert.equal(state.notifications.length, 1)
+  assert.equal(state.notifications[0].cancellationRequestApproved, true)
+  assert.equal(state.notifications[0].patientEmail, 'patient@example.test')
+  assert.equal(state.notifications[0].patientPhone, '+639171234567')
+  assert.equal(approval.body.notifications.email.sent, true)
+  assert.equal(approval.body.notifications.sms.sent, true)
   assert.equal((await PATCH(decision('approved'))).status, 409)
+  assert.equal(state.notifications.length, 1)
 })
 
 test('declining preserves the appointment and allows a new request', async () => {
@@ -106,9 +140,26 @@ test('declining preserves the appointment and allows a new request', async () =>
   state.user = { id: 'owner' }
   assert.equal((await PATCH(decision('declined'))).status, 200)
   assert.equal(state.appointment.status, 'pending')
+  assert.equal(state.notifications.length, 0)
   state.user = { id: 'patient' }
   assert.equal((await POST(submission('New reason'))).status, 200)
   assert.equal(state.appointment.cancellation_request_reason, 'New reason')
+})
+
+test('approved cancellations of pending appointments notify patients and report delivery failures without undoing cancellation', async () => {
+  for (const failure of [null, 'notificationFailure', 'storageFailure']) {
+    const { state, POST, PATCH } = fixture()
+    state.appointment.status = 'pending'
+    await POST(submission('reason'))
+    state.user = { id: 'owner' }
+    if (failure) state[failure] = true
+    const response = await PATCH(decision('approved'))
+    assert.equal(response.status, 200)
+    assert.equal(state.appointment.status, 'cancelled')
+    assert.equal(state.notifications.length, 1)
+    if (failure) assert.match(response.body.notificationError, /contact the patient/i)
+    else assert.equal(response.body.notificationError, null)
+  }
 })
 
 test('stale reviews and database errors do not report success', async () => {
@@ -119,4 +170,5 @@ test('stale reviews and database errors do not report success', async () => {
   assert.equal((await PATCH(decision('approved'))).status, 409)
   state.dbError = { message: 'database unavailable' }
   assert.equal((await PATCH(decision('approved'))).status, 500)
+  assert.equal(state.notifications.length, 0)
 })

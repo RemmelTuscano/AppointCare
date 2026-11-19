@@ -9,7 +9,7 @@ import {
 } from './email-templates'
 import { sendSmsNotification } from './sms'
 import { formatDoctorName } from './doctor-name'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 export { formatScheduleId }
 
@@ -30,6 +30,7 @@ export interface NotificationPayload {
   oldScheduledAt?: string | Date
   notes?: string | null
   reason?: string | null
+  cancellationRequestApproved?: boolean
   rescheduleUrl?: string
 }
 
@@ -53,7 +54,7 @@ export async function dispatchAutomatedNotifications(
 
   let preferences: { email?: boolean; sms?: boolean } | undefined
   let preferencesError = false
-  if (payload.patientUserId && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (payload.type !== 'created' && payload.patientUserId && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
       const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
       const [profileResult, authResult] = await Promise.all([
@@ -69,7 +70,7 @@ export async function dispatchAutomatedNotifications(
       console.warn('Could not load patient notification preferences:', error)
       preferencesError = true
     }
-  } else if (payload.patientUserId) {
+  } else if (payload.type !== 'created' && payload.patientUserId) {
     console.warn('Patient notification preferences cannot be checked: database service is not configured.')
     preferencesError = true
   }
@@ -139,7 +140,7 @@ export async function dispatchAutomatedNotifications(
       break
 
     case 'cancelled':
-      emailSubject = `Appointment Request Declined [${scheduleId}] - ${payload.clinicName || 'AppointCare'}`
+      emailSubject = `${payload.cancellationRequestApproved ? 'Appointment Cancellation Approved' : 'Appointment Request Declined'} [${scheduleId}] - ${payload.clinicName || 'AppointCare'}`
       emailHtml = getCancelledEmailHtml({
         scheduleId,
         patientName: payload.patientName,
@@ -147,6 +148,7 @@ export async function dispatchAutomatedNotifications(
         doctorName: payload.doctorName,
         scheduledAt: payload.scheduledAt,
         reason: payload.reason,
+        cancellationRequestApproved: payload.cancellationRequestApproved,
       })
       break
 
@@ -176,7 +178,9 @@ export async function dispatchAutomatedNotifications(
   }
 
   // 2. Dispatch Email
-  if (preferencesError) {
+  if (payload.type === 'created') {
+    result.email = { sent: false, skipped: true, error: 'Email is not sent when a request is placed.' }
+  } else if (preferencesError) {
     result.email = { sent: false, error: 'Unable to verify patient notification preferences.' }
   } else if (preferences?.email === false) {
     result.email = { sent: false, skipped: true, error: 'Patient has disabled email notifications.' }
@@ -187,7 +191,9 @@ export async function dispatchAutomatedNotifications(
   }
 
   // 3. Dispatch SMS only when the patient opted in and has a phone number.
-  if (preferencesError) {
+  if (payload.type === 'created') {
+    result.sms = { sent: false, skipped: true, error: 'SMS is not sent when a request is placed.' }
+  } else if (preferencesError) {
     result.sms = { sent: false, error: 'Unable to verify patient notification preferences.' }
   } else if (preferences?.sms === false) {
     result.sms = { sent: false, skipped: true, error: 'Patient has disabled SMS notifications.' }
@@ -252,4 +258,23 @@ export async function dispatchAutomatedNotifications(
   }
 
   return result
+}
+
+export async function storeInAppNotifications(
+  client: SupabaseClient,
+  appointmentId: string,
+  event: NotificationPayload['type'],
+  result: DispatchResult,
+) {
+  if (!result.inAppNotifications.length) return
+  const { error } = await client.from('notifications').insert(
+    result.inAppNotifications.map((item) => ({
+      user_id: item.userId,
+      type: 'in_app',
+      title: item.title,
+      message: item.message,
+      metadata: { appointment_id: appointmentId, schedule_id: result.scheduleId, event },
+    })),
+  )
+  if (error) throw new Error(`Failed to store in-app notifications: ${error.message}`)
 }

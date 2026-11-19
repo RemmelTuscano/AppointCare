@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { dispatchAutomatedNotifications, storeInAppNotifications, type DispatchResult } from '@/lib/notifications'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+type ReviewedAppointment = {
+  id: string
+  status: string
+  cancellation_request_status: string
+  cancellation_request_reason: string
+  patient_id: string
+  scheduled_at: string
+  patient: { full_name: string | null; email: string | null; phone: string | null } | null
+  clinic: { user_id: string; name: string; address: string; phone: string | null } | null
+  doctor: { name: string; specialization: string | null } | null
+}
 
 async function getContext() {
   const sessionClient = await createClient()
@@ -77,13 +90,50 @@ export async function PATCH(request: Request) {
     .eq('clinic_id', clinic.id)
     .eq('cancellation_request_status', 'pending')
     .in('status', ['pending', 'confirmed'])
-    .select('id, status, cancellation_request_status, cancellation_request_reason')
-    .maybeSingle()
+    .select('id, status, cancellation_request_status, cancellation_request_reason, patient_id, scheduled_at, patient:profiles(full_name, email, phone), clinic:clinics(user_id, name, address, phone), doctor:doctors(name, specialization)')
+    .maybeSingle().overrideTypes<ReviewedAppointment, { merge: false }>()
 
   if (error) {
     console.error('Failed to review cancellation request:', error.message)
     return NextResponse.json({ error: 'Could not review the cancellation request. Please try again.' }, { status: 500 })
   }
   if (!data) return NextResponse.json({ error: 'This cancellation request is no longer available. Please refresh the page.' }, { status: 409 })
-  return NextResponse.json({ appointment: data })
+
+  let notifications: DispatchResult | null = null
+  let notificationError: string | null = null
+  if (body.decision === 'approved') {
+    try {
+      notifications = await dispatchAutomatedNotifications({
+        type: 'cancelled',
+        cancellationRequestApproved: true,
+        appointmentId: data.id,
+        patientUserId: data.patient_id,
+        patientEmail: data.patient?.email,
+        patientPhone: data.patient?.phone,
+        patientName: data.patient?.full_name,
+        clinicUserId: data.clinic?.user_id,
+        clinicName: data.clinic?.name,
+        clinicAddress: data.clinic?.address,
+        clinicPhone: data.clinic?.phone,
+        doctorName: data.doctor?.name,
+        doctorSpecialization: data.doctor?.specialization,
+        scheduledAt: data.scheduled_at,
+      })
+      await storeInAppNotifications(context.admin, data.id, 'cancelled', notifications)
+    } catch (error) {
+      console.error('Cancellation approved, but notifications could not be completed:', error)
+      notificationError = 'Notification delivery could not be completed. Please contact the patient.'
+    }
+  }
+
+  return NextResponse.json({
+    appointment: {
+      id: data.id,
+      status: data.status,
+      cancellation_request_status: data.cancellation_request_status,
+      cancellation_request_reason: data.cancellation_request_reason,
+    },
+    notifications: notifications ? { email: notifications.email, sms: notifications.sms } : null,
+    notificationError,
+  })
 }

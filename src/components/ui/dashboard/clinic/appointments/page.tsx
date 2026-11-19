@@ -254,13 +254,20 @@ export default function ClinicAppointments() {
       setAppointments((current) => sortAppointments(current.map((item) => (
         item.id === appointment.id ? { ...item, ...result.appointment } : item
       ))))
-      setActionResult({
-        type: 'success',
-        title: `Cancellation request ${decision}`,
-        message: decision === 'approved'
-          ? 'The appointment has been cancelled. The patient can see the updated status in their appointments.'
-          : 'The appointment remains active. The patient can see that the request was declined.',
-      })
+      if (decision === 'approved') {
+        const allAccepted = result.notifications && notificationsAccepted(result.notifications) && !result.notificationError
+        setActionResult({
+          type: allAccepted ? 'success' : 'warning',
+          title: allAccepted ? 'Cancellation approved' : 'Cancellation approved; notifications need attention',
+          message: `The appointment has been cancelled. ${result.notifications ? describeNotificationStatus(result.notifications) : 'Notification status was not returned.'}${result.notificationError ? ` ${result.notificationError}` : ''}`,
+        })
+      } else {
+        setActionResult({
+          type: 'success',
+          title: 'Cancellation request declined',
+          message: 'The appointment remains active. The patient can see that the request was declined.',
+        })
+      }
     } catch (error) {
       setActionResult({
         type: 'error',

@@ -92,7 +92,8 @@ Before deploying cancellation requests, apply
 Editor for each environment. Patients can submit a required reason for pending or confirmed
 appointments; the clinic must approve the request to cancel the appointment, or decline it
 to leave the appointment active. Both parties can see the decision on the appointments page.
-The workflow does not send email or SMS notifications.
+When the clinic approves a cancellation, the patient receives an in-app notification and
+email and SMS, subject to their preferences and provider availability.
 
 ## Appointment notifications
 
@@ -100,6 +101,8 @@ The app sends appointment notifications from server-verified appointment and rec
 The old direct email and SMS endpoints return HTTP 410; they must not be used to send arbitrary
 messages. The dispatch endpoint accepts only an appointment ID and event type and verifies the
 signed-in patient or clinic owner and the appointment state.
+Booking requests produce in-app notifications only; confirmation sends an in-app notification
+and email and SMS, subject to the patient's preferences and provider availability.
 
 Configure these server-only environment variables (never use the `NEXT_PUBLIC_` prefix):
 

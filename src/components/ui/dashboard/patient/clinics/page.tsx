@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { describeNotificationStatus, notificationsAccepted } from '@/lib/notification-status'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -198,20 +197,19 @@ export default function PatientClinics() {
 
     const apt = bookingPayload.appointment
 
-    let notificationMessage = 'Notification delivery could not be confirmed.'
+    let notificationMessage = 'Email and SMS will be sent after clinic confirmation, according to your notification preferences.'
     try {
       const notificationResponse = await fetch('/api/notifications/dispatch', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'created', appointmentId: apt.id }),
       })
       const notificationResult = await notificationResponse.json()
-      if (notificationResponse.ok && notificationResult.success) {
-        notificationMessage = notificationsAccepted(notificationResult)
-          ? 'Email and SMS were accepted by their providers; delivery is not confirmed.'
-          : describeNotificationStatus(notificationResult)
+      if (!notificationResponse.ok || !notificationResult.success) {
+        notificationMessage += ' In-app notifications could not be saved; please check your appointments for updates.'
       }
-    } catch {
-      notificationMessage = 'Notification delivery could not be confirmed.'
+    } catch (error) {
+      console.error('Failed to dispatch booking in-app notifications:', error)
+      notificationMessage += ' In-app notifications could not be saved; please check your appointments for updates.'
     }
 
     setSelectedClinic(null)

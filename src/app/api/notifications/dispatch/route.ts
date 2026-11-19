@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { dispatchAutomatedNotifications } from '@/lib/notifications'
+import { dispatchAutomatedNotifications, storeInAppNotifications } from '@/lib/notifications'
 
 type Person = { full_name: string | null; email: string | null; phone: string | null }
 type Clinic = { user_id: string; name: string; address: string; phone: string | null }
@@ -12,6 +12,7 @@ type Appointment = {
   patient_id: string
   scheduled_at: string
   status: string
+  cancellation_request_status: string | null
   notes: string | null
   patient: Person | null
   clinic: Clinic | null
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient()
   if (!admin) return NextResponse.json({ error: 'Database service is not configured.' }, { status: 500 })
   const { data: appointment, error } = await admin.from('appointments')
-    .select('id, patient_id, scheduled_at, status, notes, patient:profiles(full_name, email, phone), clinic:clinics(user_id, name, address, phone), doctor:doctors(name, specialization, is_available)')
+    .select('id, patient_id, scheduled_at, status, cancellation_request_status, notes, patient:profiles(full_name, email, phone), clinic:clinics(user_id, name, address, phone), doctor:doctors(name, specialization, is_available)')
     .eq('id', body.appointmentId).maybeSingle().overrideTypes<Appointment, { merge: false }>()
   if (error) {
     console.error('Notification appointment lookup failed:', error.message)
@@ -79,23 +80,16 @@ export async function POST(request: Request) {
     doctorSpecialization: doctor?.specialization,
     scheduledAt: appointment.scheduled_at,
     notes: appointment.notes,
-    reason: type === 'cancelled' ? 'Clinic could not accommodate this booking request.' : undefined,
+    cancellationRequestApproved: type === 'cancelled' && appointment.cancellation_request_status === 'approved',
+    reason: type === 'cancelled' && appointment.cancellation_request_status !== 'approved'
+      ? 'Clinic could not accommodate this booking request.' : undefined,
   })
 
-  if (result.inAppNotifications.length) {
-    const { error: insertError } = await admin.from('notifications').insert(
-      result.inAppNotifications.map((item) => ({
-        user_id: item.userId,
-        type: 'in_app',
-        title: item.title,
-        message: item.message,
-        metadata: { appointment_id: appointment.id, schedule_id: result.scheduleId, event: type },
-      }))
-    )
-    if (insertError) {
-      console.error('Failed to store in-app notifications:', insertError.message)
-      return NextResponse.json({ error: 'Notification delivery could not be completed.' }, { status: 500 })
-    }
+  try {
+    await storeInAppNotifications(admin, appointment.id, type, result)
+  } catch (insertError) {
+    console.error('Failed to store in-app notifications:', insertError)
+    return NextResponse.json({ error: 'Notification delivery could not be completed.' }, { status: 500 })
   }
 
   return NextResponse.json({ success: true, scheduleId: result.scheduleId, email: result.email, sms: result.sms })

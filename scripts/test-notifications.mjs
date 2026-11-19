@@ -120,7 +120,11 @@ function notificationFixture({ preferences = { email: true, sms: true }, profile
     type: 'confirmed', appointmentId: 'appointment-1', patientUserId: 'patient-1',
     patientEmail: 'patient@example.test', patientPhone: '+12025550123', scheduledAt: '2026-01-02T10:00:00Z',
   }
-  return { sent, dispatch: (overrides = {}) => notifications.dispatchAutomatedNotifications({ ...payload, ...overrides }) }
+  return {
+    sent,
+    dispatch: (overrides = {}) => notifications.dispatchAutomatedNotifications({ ...payload, ...overrides }),
+    storeInAppNotifications: notifications.storeInAppNotifications,
+  }
 }
 
 test('doctor names appear with one title in every email and SMS template', () => {
@@ -165,6 +169,41 @@ test('in-app appointment notifications also use one doctor title', async () => {
     assert.match(result.inAppNotifications[0].message, /Dr\. Maria Santos/)
     assert.doesNotMatch(result.inAppNotifications[0].message, /Dr\.\s*Dr\./)
   }
+})
+
+test('booking requests create in-app notifications without sending email or SMS', async () => {
+  const fixture = notificationFixture()
+  const result = await fixture.dispatch({ type: 'created', clinicUserId: 'clinic-1' })
+  assert.equal(fixture.sent.email.length, 0)
+  assert.equal(fixture.sent.sms.length, 0)
+  assert.equal(result.email.skipped, true)
+  assert.equal(result.sms.skipped, true)
+  assert.equal(result.inAppNotifications.length, 2)
+})
+
+test('approved cancellation emails say the cancellation was approved, not the booking declined', async () => {
+  const fixture = notificationFixture()
+  await fixture.dispatch({ type: 'cancelled', cancellationRequestApproved: true })
+  assert.match(fixture.sent.email[0].subject, /Cancellation Approved/)
+  assert.equal(fixture.sent.sms[0].type, 'cancelled')
+  const email = load('src/lib/email-templates.ts', { './doctor-name': doctorName, './schedule-id': { formatScheduleId: (id) => id } }, {})
+  const approved = email.getCancelledEmailHtml({ ...smsParams, cancellationRequestApproved: true })
+  assert.match(approved, /cancellation request\. Your appointment has been cancelled/i)
+  assert.doesNotMatch(approved, /request was declined|could not accommodate/i)
+  assert.match(email.getCancelledEmailHtml(smsParams), /request was declined/i)
+  const optedOut = notificationFixture({ preferences: { email: false, sms: false } })
+  const skipped = await optedOut.dispatch({ type: 'cancelled', cancellationRequestApproved: true })
+  assert.equal(skipped.email.skipped, true)
+  assert.equal(skipped.sms.skipped, true)
+  assert.equal(optedOut.sent.email.length, 0)
+  assert.equal(optedOut.sent.sms.length, 0)
+})
+
+test('in-app storage surfaces database failures', async () => {
+  const fixture = notificationFixture()
+  const result = await fixture.dispatch({ type: 'created' })
+  const client = { from: () => ({ insert: async () => ({ error: { message: 'database unavailable' } }) }) }
+  await assert.rejects(fixture.storeInAppNotifications(client, 'id', 'created', result), /database unavailable/)
 })
 
 test('notifications send through Resend and TextBee and respect patient preferences', async () => {
