@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getSiteUrl } from '@/lib/utils'
 import { normalizePhilippineMobileNumber } from '@/lib/phone'
+import { SIGNUP_ADDRESS_SUGGESTIONS } from '@/lib/signup-addresses'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -58,6 +59,7 @@ export default function SignupPage({ onSwitchToLogin }: { onSwitchToLogin?: () =
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const addressListId = useId()
 
   const handleSignup = async (e: React.FormEvent, role: 'patient' | 'clinic', formData: SignupFormData) => {
     e.preventDefault()
@@ -147,20 +149,23 @@ export default function SignupPage({ onSwitchToLogin }: { onSwitchToLogin?: () =
             </TabsList>
 
             <TabsContent value="patient">
-              <PatientSignupForm onSubmit={handleSignup} loading={loading} error={error} />
+              <PatientSignupForm onSubmit={handleSignup} loading={loading} error={error} addressListId={addressListId} />
             </TabsContent>
 
             <TabsContent value="clinic">
-              <ClinicSignupForm onSubmit={handleSignup} loading={loading} error={error} />
+              <ClinicSignupForm onSubmit={handleSignup} loading={loading} error={error} addressListId={addressListId} />
             </TabsContent>
           </Tabs>
+          <datalist id={addressListId}>
+            {SIGNUP_ADDRESS_SUGGESTIONS.map((address) => <option key={address} value={address} />)}
+          </datalist>
         </CardContent>
       </Card>
     </div>
   )
 }
 
-function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit; loading: boolean; error: string }) {
+function PatientSignupForm({ onSubmit, loading, error, addressListId }: { onSubmit: SignupSubmit; loading: boolean; error: string; addressListId: string }) {
   const [formData, setFormData] = useState({
     fullname: '',
     email: '',
@@ -278,10 +283,13 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
       </div>
 
       <div className="space-y-1.5 sm:space-y-2">
-        <Label className="text-xs sm:text-sm">Address</Label>
+        <Label htmlFor={`${addressListId}-patient-address`} className="text-xs sm:text-sm">Address</Label>
         <div className="relative">
           <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
+            id={`${addressListId}-patient-address`}
+            list={addressListId}
+            aria-describedby={`${addressListId}-patient-address-help`}
             className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.address ? 'border-red-500' : ''}`}
             value={formData.address}
             onChange={(e) => handleFieldChange('address', e.target.value)}
@@ -290,6 +298,7 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
             required
           />
         </div>
+        <p id={`${addressListId}-patient-address-help`} className="text-[10px] sm:text-xs text-gray-500">Choose a suggested location or type your full address.</p>
         {validationErrors.address && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.address}</p>}
       </div>
 
@@ -363,7 +372,7 @@ function PatientSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmi
   )
 }
 
-function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit; loading: boolean; error: string }) {
+function ClinicSignupForm({ onSubmit, loading, error, addressListId }: { onSubmit: SignupSubmit; loading: boolean; error: string; addressListId: string }) {
   const [formData, setFormData] = useState({
     clinicName: '',
     email: '',
@@ -481,10 +490,13 @@ function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit
       </div>
 
       <div className="space-y-1.5 sm:space-y-2">
-        <Label className="text-xs sm:text-sm">Address</Label>
+        <Label htmlFor={`${addressListId}-clinic-address`} className="text-xs sm:text-sm">Address</Label>
         <div className="relative">
           <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
+            id={`${addressListId}-clinic-address`}
+            list={addressListId}
+            aria-describedby={`${addressListId}-clinic-address-help`}
             className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.address ? 'border-red-500' : ''}`}
             value={formData.address}
             onChange={(e) => handleFieldChange('address', e.target.value)}
@@ -493,6 +505,7 @@ function ClinicSignupForm({ onSubmit, loading, error }: { onSubmit: SignupSubmit
             required
           />
         </div>
+        <p id={`${addressListId}-clinic-address-help`} className="text-[10px] sm:text-xs text-gray-500">Choose a suggested location or type your full address.</p>
         {validationErrors.address && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.address}</p>}
       </div>
 
