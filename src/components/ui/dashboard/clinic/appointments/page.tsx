@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useEffectEvent, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -361,6 +362,8 @@ export default function ClinicAppointments() {
           </div>
         </div>
       </header>
+
+      <Button asChild variant="outline"><Link href="/clinic/appointments/history">View appointment history</Link></Button>
 
       {loadError && (
         <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">

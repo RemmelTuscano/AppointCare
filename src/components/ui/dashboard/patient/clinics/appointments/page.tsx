@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useEffectEvent, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -120,6 +121,8 @@ export default function PatientAppointments() {
           />
         </div>
       </header>
+
+      <Button asChild variant="outline"><Link href="/patient/appointments/history">View appointment history</Link></Button>
 
       <div className="grid gap-4">
         {filteredAppointments.map((apt) => {
