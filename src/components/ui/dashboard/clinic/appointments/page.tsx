@@ -2,6 +2,7 @@
 
 import { useEffect, useEffectEvent, useState } from 'react'
 import Link from 'next/link'
+import { Tabs } from '@base-ui/react/tabs'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -28,6 +29,7 @@ import {
 } from 'lucide-react'
 import { formatScheduleId } from '@/lib/schedule-id'
 import { describeNotificationStatus, notificationsAccepted } from '@/lib/notification-status'
+import { filterClinicAppointments, type ClinicAppointmentStatusFilter } from '@/lib/clinic-appointment-filters'
 
 type ClinicAppointment = {
   id: string
@@ -36,6 +38,7 @@ type ClinicAppointment = {
   doctor_id: string | null
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
   scheduled_at: string
+  service: string | null
   notes: string | null
   patient: { id: string; full_name: string | null; email: string | null; phone: string | null } | null
   doctor: { id: string; name: string | null; specialization: string | null; is_available: boolean } | null
@@ -59,6 +62,14 @@ const TIME_SLOTS = [
   '04:30 PM',
 ]
 
+const STATUS_TABS: { value: ClinicAppointmentStatusFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'completed', label: 'Done' },
+  { value: 'cancelled', label: 'Cancelled' },
+]
+
 function sortAppointments(appointments: ClinicAppointment[]) {
   return [...appointments].sort((first, second) => {
     if (first.status === 'pending' && second.status !== 'pending') return -1
@@ -77,6 +88,7 @@ export default function ClinicAppointments() {
   const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ appointment: ClinicAppointment; status: 'confirmed' | 'cancelled' } | null>(null)
   const [actionResult, setActionResult] = useState<{ type: 'success' | 'warning' | 'error'; title: string; message: string } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<ClinicAppointmentStatusFilter>('all')
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [dateFilter, setDateFilter] = useState('')
 
@@ -308,21 +320,7 @@ export default function ClinicAppointments() {
     setUpdatingId(null)
   }
 
-  const filteredAppointments = appointments
-    .filter((apt) => {
-      const scheduleId = formatScheduleId(apt.id).toLowerCase()
-      const patientName = apt.patient?.full_name?.toLowerCase() || ''
-      const patientEmail = apt.patient?.email?.toLowerCase() || ''
-      const doctorName = apt.doctor?.name?.toLowerCase() || ''
-      const q = searchQuery.toLowerCase().trim()
-      if (dateFilter && new Date(apt.scheduled_at).getDate() !== Number(dateFilter)) return false
-      if (!q) return true
-      return scheduleId.includes(q) || patientName.includes(q) || patientEmail.includes(q) || doctorName.includes(q)
-    })
-    .sort((first, second) => {
-      if (!dateFilter) return 0
-      return new Date(first.scheduled_at).getTime() - new Date(second.scheduled_at).getTime()
-    })
+  const filteredAppointments = filterClinicAppointments(appointments, statusFilter, searchQuery, dateFilter)
 
   if (loading) return <div className="text-center py-8 sm:py-12 text-xs sm:text-sm text-muted-foreground">Loading appointment management...</div>
 
@@ -371,6 +369,19 @@ export default function ClinicAppointments() {
         </div>
       )}
 
+      <Tabs.Root value={statusFilter} onValueChange={(value) => {
+        const selected = STATUS_TABS.find((tab) => tab.value === value)
+        if (selected) setStatusFilter(selected.value)
+      }}>
+        <Tabs.List aria-label="Filter appointments by status" className="mb-4 flex flex-wrap gap-1 rounded-md bg-muted p-1">
+          {STATUS_TABS.map((tab) => (
+            <Tabs.Tab key={tab.value} value={tab.value} className="rounded-sm px-3 py-2 text-sm font-medium text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring data-[active]:bg-background data-[active]:text-foreground data-[active]:shadow-sm">
+              {tab.label}
+            </Tabs.Tab>
+          ))}
+        </Tabs.List>
+        {STATUS_TABS.map((tab) => (
+          <Tabs.Panel key={tab.value} value={tab.value}>
       <div className="grid gap-3 sm:gap-4">
         {filteredAppointments.map((apt) => {
           const scheduleId = formatScheduleId(apt.id)
@@ -458,6 +469,8 @@ export default function ClinicAppointments() {
                       )}
                     </div>
 
+                    <p className="text-sm text-foreground"><span className="font-semibold">Service: </span>{apt.service || 'Not recorded'}</p>
+
                     {isDoctorUnavailable && (
                       <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
                         <div className="flex items-center gap-2">
@@ -525,12 +538,15 @@ export default function ClinicAppointments() {
               <CalendarDays className="mx-auto mb-4 size-12 text-emerald-200" />
               <p>No appointments found</p>
               <p className="mt-1 text-sm">
-                {searchQuery ? 'Try another search term.' : 'New patient appointment requests will appear here.'}
+                {searchQuery || dateFilter ? 'Try changing your search or day filter.' : statusFilter === 'all' ? 'New patient appointment requests will appear here.' : `No ${tab.label.toLowerCase()} appointments to show.`}
               </p>
             </CardContent>
           </Card>
         )}
       </div>
+          </Tabs.Panel>
+        ))}
+      </Tabs.Root>
 
       <Dialog open={pendingStatusUpdate !== null} onOpenChange={(open) => { if (!open) setPendingStatusUpdate(null) }}>
         <DialogContent>

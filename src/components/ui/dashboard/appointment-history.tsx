@@ -58,6 +58,7 @@ export async function AppointmentHistory({ role, page: pageParam }: {
                   {' · '}{appointment.doctor?.name ? `Dr. ${appointment.doctor.name}` : 'Doctor not assigned'}
                   {appointment.doctor?.specialization ? ` (${appointment.doctor.specialization})` : ''}
                 </p>
+                <p className="text-sm text-foreground"><span className="font-semibold">Service: </span>{appointment.service || 'Not recorded'}</p>
                 {role === 'patient' && appointment.clinic?.address && <p className="text-sm text-muted-foreground">{appointment.clinic.address}</p>}
                 {appointment.notes && <p className="whitespace-pre-wrap text-sm text-foreground"><span className="font-semibold">Notes: </span>{appointment.notes}</p>}
               </CardContent>

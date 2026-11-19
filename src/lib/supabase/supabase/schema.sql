@@ -48,6 +48,7 @@ create table appointments (
   doctor_id uuid references doctors(id) on delete set null,
   scheduled_at timestamp with time zone not null,
   status text check (status in ('pending', 'confirmed', 'cancelled', 'completed')) default 'pending',
+  service text,
   notes text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

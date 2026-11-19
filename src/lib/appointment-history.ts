@@ -6,6 +6,7 @@ export type HistoryAppointment = {
   id: string
   scheduled_at: string
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+  service: string | null
   notes: string | null
   patient: { full_name: string | null } | null
   clinic: { name: string; address: string } | null
@@ -43,7 +44,7 @@ export async function loadAppointmentHistory(
   const start = (page - 1) * HISTORY_PAGE_SIZE
   const { data, error } = await client
     .from('appointments')
-    .select('id, scheduled_at, status, notes, patient:profiles(full_name), clinic:clinics(name, address), doctor:doctors(name, specialization)')
+    .select('id, scheduled_at, status, service, notes, patient:profiles(full_name), clinic:clinics(name, address), doctor:doctors(name, specialization)')
     .eq(ownerColumn, ownerId)
     .lt('scheduled_at', now.toISOString())
     .order('scheduled_at', { ascending: false })

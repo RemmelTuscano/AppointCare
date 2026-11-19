@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
+import { getServicesBySpecialization } from '@/lib/services'
 
 export async function POST(request: Request) {
   try {
@@ -10,9 +11,12 @@ export async function POST(request: Request) {
     const { data: { user } } = await sessionClient.auth.getUser()
     if (!user) return NextResponse.json({ error: 'You must be signed in to book an appointment.' }, { status: 401 })
 
-    const { clinicId, doctorId, scheduledAt, notes } = await request.json()
+    const { clinicId, doctorId, scheduledAt, notes, service } = await request.json()
     if (!clinicId || !doctorId || !scheduledAt) {
       return NextResponse.json({ error: 'Clinic, doctor, and appointment time are required.' }, { status: 400 })
+    }
+    if (typeof service !== 'string' || !service.trim()) {
+      return NextResponse.json({ error: 'Please select a service.' }, { status: 400 })
     }
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -30,6 +34,10 @@ export async function POST(request: Request) {
     if (doctorError || !doctor || !doctor.is_available) {
       console.warn('Appointment booking conflict: doctor unavailable', { clinicId, doctorId })
       return NextResponse.json({ code: 'DOCTOR_UNAVAILABLE', error: 'This doctor is no longer available. Please choose another available doctor.' }, { status: 409 })
+    }
+    const selectedService = service.trim()
+    if (!getServicesBySpecialization(doctor.specialization).includes(selectedService)) {
+      return NextResponse.json({ error: 'Please select a service offered by this doctor.' }, { status: 400 })
     }
 
     const appointmentDate = new Date(scheduledAt)
@@ -56,11 +64,14 @@ export async function POST(request: Request) {
 
     const { data: appointment, error: bookingError } = await admin
       .from('appointments')
-      .insert({ patient_id: user.id, clinic_id: clinicId, doctor_id: doctorId, scheduled_at: appointmentDate.toISOString(), notes: typeof notes === 'string' ? notes.trim() || null : null, status: 'pending' })
+      .insert({ patient_id: user.id, clinic_id: clinicId, doctor_id: doctorId, scheduled_at: appointmentDate.toISOString(), service: selectedService, notes: typeof notes === 'string' ? notes.trim() || null : null, status: 'pending' })
       .select('*')
       .single()
 
-    if (bookingError || !appointment) return NextResponse.json({ error: bookingError?.message || 'Unable to create appointment.' }, { status: 500 })
+    if (bookingError || !appointment) {
+      console.error('Appointment booking failed:', bookingError)
+      return NextResponse.json({ error: 'Unable to create appointment. Please try again.' }, { status: 500 })
+    }
     return NextResponse.json({ appointment, doctor })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to create appointment.' }, { status: 500 })

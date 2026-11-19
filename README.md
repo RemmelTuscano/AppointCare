@@ -71,6 +71,14 @@ uses short-lived signed links instead. Review the deployed database's other poli
 as well, since these scripts cannot remove unrelated policies created outside this repository.
 Never apply the demo repair script to production.
 
+To restrict the administrator activity log to administrator actions, run
+`scripts/migrations/20261119010000_admin_only_activity.sql` in the Supabase SQL Editor
+before deploying the updated app. Existing entries are retained, but only entries attributable
+to current administrators at migration time are displayed; historical roles cannot be
+reconstructed. New entries are classified using trusted Auth app metadata at the time of
+the action. Changes made through service-role database operations without an administrator
+actor are not recorded as administrator actions.
+
 ## Appointment notifications
 
 The app sends appointment notifications from server-verified appointment and recipient data.
@@ -110,6 +118,10 @@ numbers into profiles and clinics, and restores missing contact details from sig
 for existing accounts. Existing non-null profile values and clinic addresses other than
 `Address pending` are preserved; review the backfill before running it if a cleared field
 should remain empty. Run it again after any older script that replaces `handle_new_user`.
+
+Run `scripts/migrations/20261119020000_add_appointment_service.sql` before deploying the
+appointment service display. New bookings retain the selected service; older bookings show
+`Not recorded` because the selection was not previously saved.
 
 For an end-to-end check, use a test patient with contact details you control, enable the desired
 notification channels, and create or update an appointment in the app. Check the displayed

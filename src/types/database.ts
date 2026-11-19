@@ -40,6 +40,7 @@ export interface Appointment {
   doctor_id: string | null
   scheduled_at: string
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+  service: string | null
   notes: string | null
   created_at: string
   clinic?: Clinic

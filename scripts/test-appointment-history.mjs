@@ -37,9 +37,11 @@ function fixture() {
 
 test('patient history is scoped to the patient and all statuses before the cutoff', async () => {
   const { state, client } = fixture()
-  state.rows = [{ id: 'past', status: 'pending' }, { id: 'cancelled', status: 'cancelled' }]
+  state.rows = [{ id: 'past', status: 'pending', service: 'Root Canal' }, { id: 'cancelled', status: 'cancelled', service: null }]
   const result = await loadAppointmentHistory(client, 'patient-a', 'patient', 1, new Date('2026-01-02T00:00:00Z'))
   assert.equal(result.appointments.length, 2)
+  assert.equal(result.appointments[0].service, 'Root Canal')
+  assert.ok(state.calls.some(call => call[0] === 'select' && call[1].includes('service')))
   assert.equal(result.hasNextPage, false)
   assert.ok(state.calls.some(call => call[0] === 'eq' && call[1] === 'patient_id' && call[2] === 'patient-a'))
   assert.ok(state.calls.some(call => call[0] === 'lt' && call[1] === 'scheduled_at' && call[2] === '2026-01-02T00:00:00.000Z'))

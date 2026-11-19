@@ -30,6 +30,7 @@ type PatientAppointment = {
   doctor_id: string | null
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
   scheduled_at: string
+  service: string | null
   created_at: string
   notes: string | null
   clinic: { id: string; name: string; address: string } | null
@@ -261,6 +262,10 @@ export default function PatientAppointments() {
                           {apt.doctor?.name ? `Dr. ${apt.doctor.name}` : 'To be assigned'}
                           {apt.doctor?.specialization ? ` · ${apt.doctor.specialization}` : ''}
                         </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase text-muted-foreground">Service</dt>
+                        <dd className="mt-1 text-sm text-foreground">{apt.service || 'Not recorded'}</dd>
                       </div>
                       <div>
                         <dt className="text-xs font-semibold uppercase text-muted-foreground">Booked on</dt>

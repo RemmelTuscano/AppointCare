@@ -11,6 +11,7 @@ type ClinicAppointment = {
   id: string
   status: string
   scheduled_at: string
+  service: string | null
   notes: string | null
   patient: { full_name: string | null } | null
   doctor: { name: string | null } | null
@@ -44,7 +45,7 @@ export default function ClinicDashboard() {
       } else {
         const { data } = await supabase
           .from('appointments')
-          .select('id, status, scheduled_at, notes, patient:profiles(full_name), doctor:doctors(name)')
+          .select('id, status, scheduled_at, service, notes, patient:profiles(full_name), doctor:doctors(name)')
           .eq('clinic_id', clinic.id)
           .order('scheduled_at', { ascending: false })
         list = (data || []) as ClinicAppointment[]
@@ -95,6 +96,7 @@ export default function ClinicDashboard() {
                   </div>
                   <p className="text-[10px] sm:text-xs text-gray-500 mt-1">{format(new Date(appointment.scheduled_at), 'PPp')}</p>
                   <p className="mt-1 flex items-center gap-2 text-[10px] sm:text-xs text-gray-600"><UserRound className="size-3 sm:size-4 flex-shrink-0" /> Dr. {appointment.doctor?.name || 'Unassigned'}</p>
+                  <p className="mt-1 text-[10px] sm:text-xs text-gray-600">Service: {appointment.service || 'Not recorded'}</p>
                   {appointment.notes && <p className="mt-1 text-[10px] sm:text-xs text-gray-600">{appointment.notes}</p>}
                 </div>
                 <span className={`w-fit rounded-full px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold capitalize ${appointment.status === 'confirmed' ? 'bg-teal-100 text-teal-800' : appointment.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-muted text-muted-foreground'}`}>{appointment.status}</span>
