@@ -222,6 +222,7 @@ test('reminders require configured secret and never return patient details', asy
     let doctor = null
     let updates = 0
     let dispatched = 0
+    let cancellationPending = false
     const appointment = {
       id: 'a', clinic_id: 'clinic-a', patient_id: 'patient', scheduled_at: '2026-01-01T10:00:00Z',
       patient: { full_name: 'Patient' }, clinic: { user_id: 'owner', name: 'Clinic' }, doctor: { name: 'Doctor' },
@@ -239,7 +240,10 @@ test('reminders require configured secret and never return patient details', asy
             updates++
             return { eq: () => ({ eq: (column, clinicId) => {
               assert.equal(clinicId, 'clinic-a')
-              return { select: () => ({ single: async () => ({ data: appointment, error: null }) }) }
+              return { or: (filter) => {
+                assert.equal(filter, 'cancellation_request_status.is.null,cancellation_request_status.neq.pending')
+                return { select: () => ({ maybeSingle: async () => ({ data: cancellationPending ? null : appointment, error: null }) }) }
+              } }
             } }) }
           },
         }
@@ -268,6 +272,9 @@ test('reminders require configured secret and never return patient details', asy
     doctor = { id: 'doctor-a', is_available: true }
     assert.equal((await POST(request('doctor-a'))).status, 200)
     assert.equal(updates, 1)
+    assert.equal(dispatched, 1)
+    cancellationPending = true
+    assert.equal((await POST(request('doctor-a'))).status, 409)
     assert.equal(dispatched, 1)
   })
   const request = (token) => ({ headers: { get: () => token } })

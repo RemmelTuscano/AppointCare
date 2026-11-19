@@ -79,6 +79,15 @@ reconstructed. New entries are classified using trusted Auth app metadata at the
 the action. Changes made through service-role database operations without an administrator
 actor are not recorded as administrator actions.
 
+## Appointment cancellation requests
+
+Before deploying cancellation requests, apply
+`scripts/migrations/20261119030000_appointment_cancellation_requests.sql` in the Supabase SQL
+Editor for each environment. Patients can submit a required reason for pending or confirmed
+appointments; the clinic must approve the request to cancel the appointment, or decline it
+to leave the appointment active. Both parties can see the decision on the appointments page.
+The workflow does not send email or SMS notifications.
+
 ## Appointment notifications
 
 The app sends appointment notifications from server-verified appointment and recipient data.

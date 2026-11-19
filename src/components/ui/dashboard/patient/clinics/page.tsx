@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ArrowLeft, CalendarDays, CheckCircle2, CircleAlert, Clock3, MapPin, Stethoscope, UserCheck, UserRound, UsersRound } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, CircleAlert, Clock3, MapPin, Stethoscope, UserCheck, UserRound } from 'lucide-react'
 import { getServicesBySpecialization } from '@/lib/services'
 import { SERVICES_BY_SPECIALIZATION } from '@/lib/services'
 
@@ -262,23 +262,6 @@ export default function PatientClinics() {
                 {clinic.doctors?.filter((doctor) => doctor.is_available).length || 0} doctors available
               </div>
 
-              <div className="border-t border-emerald-100 pt-3">
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase text-emerald-800"><UsersRound className="size-3.5" />Available doctors</p>
-                <div className="space-y-2">
-                  {clinic.doctors?.filter((doctor) => doctor.is_available).length ? clinic.doctors.filter((doctor) => doctor.is_available).map((doctor) => (
-                    <div key={doctor.id} className="flex items-center justify-between gap-3 rounded-md bg-emerald-50/55 px-3 py-2">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <UserRound className="size-4 shrink-0 text-emerald-700" />
-                        <span className="truncate text-sm font-medium text-emerald-950">{doctor.name}</span>
-                      </div>
-                      <span className="shrink-0 text-xs font-medium text-emerald-700">Available</span>
-                    </div>
-                  )) : (
-                    <p className="text-sm text-muted-foreground">No doctors are available for booking right now.</p>
-                  )}
-                </div>
-              </div>
-              
               <Button className="w-full" disabled={!clinic.doctors?.some((doctor) => doctor.is_available)} onClick={() => loadDoctors(clinic)}>
                 {clinic.doctors?.some((doctor) => doctor.is_available) ? 'View clinic' : 'No doctors available'}
               </Button>

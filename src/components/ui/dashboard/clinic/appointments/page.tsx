@@ -40,6 +40,8 @@ type ClinicAppointment = {
   scheduled_at: string
   service: string | null
   notes: string | null
+  cancellation_request_status: 'pending' | 'approved' | 'declined' | null
+  cancellation_request_reason: string | null
   patient: { id: string; full_name: string | null; email: string | null; phone: string | null } | null
   doctor: { id: string; name: string | null; specialization: string | null; is_available: boolean } | null
   clinic: { id: string; name: string; address: string } | null
@@ -86,6 +88,7 @@ export default function ClinicAppointments() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ appointment: ClinicAppointment; status: 'confirmed' | 'cancelled' } | null>(null)
+  const [cancellationDecision, setCancellationDecision] = useState<{ appointment: ClinicAppointment; decision: 'approved' | 'declined' } | null>(null)
   const [actionResult, setActionResult] = useState<{ type: 'success' | 'warning' | 'error'; title: string; message: string } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<ClinicAppointmentStatusFilter>('all')
@@ -171,6 +174,7 @@ export default function ClinicAppointments() {
       .from('appointments')
       .update({ status })
       .eq('id', id)
+      .or('cancellation_request_status.is.null,cancellation_request_status.neq.pending')
       .select('*, patient:profiles(id, email, full_name, phone), doctor:doctors(name, specialization), clinic:clinics(name, address)')
       .single()
 
@@ -223,6 +227,40 @@ export default function ClinicAppointments() {
     const { appointment, status } = pendingStatusUpdate
     setPendingStatusUpdate(null)
     void updateStatus(appointment.id, status)
+  }
+
+  const reviewCancellation = async () => {
+    if (!cancellationDecision) return
+    const { appointment, decision } = cancellationDecision
+    setUpdatingId(appointment.id)
+    try {
+      const response = await fetch('/api/appointments/cancellation-request', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId: appointment.id, decision }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Could not review the cancellation request.')
+      setAppointments((current) => sortAppointments(current.map((item) => (
+        item.id === appointment.id ? { ...item, ...result.appointment } : item
+      ))))
+      setActionResult({
+        type: 'success',
+        title: `Cancellation request ${decision}`,
+        message: decision === 'approved'
+          ? 'The appointment has been cancelled. The patient can see the updated status in their appointments.'
+          : 'The appointment remains active. The patient can see that the request was declined.',
+      })
+    } catch (error) {
+      setActionResult({
+        type: 'error',
+        title: 'Cancellation request not updated',
+        message: error instanceof Error ? error.message : 'Could not review the cancellation request.',
+      })
+    } finally {
+      setCancellationDecision(null)
+      setUpdatingId(null)
+    }
   }
 
   const openRescheduleModal = (apt: ClinicAppointment) => {
@@ -297,6 +335,7 @@ export default function ClinicAppointments() {
       .from('appointments')
       .update({ status: 'completed' })
       .eq('id', id)
+      .or('cancellation_request_status.is.null,cancellation_request_status.neq.pending')
       .select('*, patient:profiles(full_name), doctor:doctors(name), clinic:clinics(name)')
       .single()
 
@@ -443,6 +482,9 @@ export default function ClinicAppointments() {
                           <TriangleAlert className="size-3" /> Doctor Unavailable
                         </Badge>
                       )}
+                      {apt.cancellation_request_status === 'pending' && (apt.status === 'pending' || apt.status === 'confirmed') && (
+                        <Badge variant="secondary">Cancellation requested</Badge>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
@@ -471,6 +513,13 @@ export default function ClinicAppointments() {
 
                     <p className="text-sm text-foreground"><span className="font-semibold">Service: </span>{apt.service || 'Not recorded'}</p>
 
+                    {apt.cancellation_request_status === 'pending' && (apt.status === 'pending' || apt.status === 'confirmed') && (
+                      <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                        <p className="font-semibold">Patient cancellation reason</p>
+                        <p className="mt-1 whitespace-pre-wrap break-words">{apt.cancellation_request_reason}</p>
+                      </div>
+                    )}
+
                     {isDoctorUnavailable && (
                       <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
                         <div className="flex items-center gap-2">
@@ -490,8 +539,18 @@ export default function ClinicAppointments() {
                   </div>
 
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    {apt.cancellation_request_status === 'pending' && (apt.status === 'pending' || apt.status === 'confirmed') && (
+                      <>
+                        <Button size="sm" variant="destructive" disabled={updatingId === apt.id} onClick={() => setCancellationDecision({ appointment: apt, decision: 'approved' })}>
+                          Approve cancellation
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={updatingId === apt.id} onClick={() => setCancellationDecision({ appointment: apt, decision: 'declined' })}>
+                          Decline cancellation
+                        </Button>
+                      </>
+                    )}
                     {/* Reschedule / Reassign Button */}
-                    {(apt.status === 'pending' || apt.status === 'confirmed') && (
+                    {(apt.status === 'pending' || apt.status === 'confirmed') && apt.cancellation_request_status !== 'pending' && (
                       <Button
                         size="sm"
                         variant={isDoctorUnavailable ? 'default' : 'outline'}
@@ -503,7 +562,7 @@ export default function ClinicAppointments() {
                       </Button>
                     )}
 
-                    {apt.status === 'confirmed' && (
+                    {apt.status === 'confirmed' && apt.cancellation_request_status !== 'pending' && (
                       <Button
                         size="sm"
                         disabled={updatingId === apt.id}
@@ -515,7 +574,7 @@ export default function ClinicAppointments() {
                     )}
 
                     {/* Accept / Approve Buttons */}
-                    {apt.status === 'pending' && (
+                    {apt.status === 'pending' && apt.cancellation_request_status !== 'pending' && (
                       <Button 
                         size="sm" 
                         disabled={updatingId === apt.id}
@@ -547,6 +606,29 @@ export default function ClinicAppointments() {
           </Tabs.Panel>
         ))}
       </Tabs.Root>
+
+      <Dialog open={cancellationDecision !== null} onOpenChange={(open) => {
+        if (!open && !updatingId) setCancellationDecision(null)
+      }}>
+        <DialogContent role="dialog" aria-modal="true" aria-labelledby="review-cancellation-title">
+          <DialogHeader>
+            <DialogTitle id="review-cancellation-title">
+              {cancellationDecision?.decision === 'approved' ? 'Approve cancellation?' : 'Decline cancellation?'}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="py-4 text-sm text-muted-foreground">
+            {cancellationDecision?.decision === 'approved'
+              ? 'The appointment will be cancelled.'
+              : 'The appointment will remain active.'}
+          </p>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" disabled={!!updatingId} onClick={() => setCancellationDecision(null)}>Back</Button>
+            <Button variant={cancellationDecision?.decision === 'approved' ? 'destructive' : 'default'} disabled={!!updatingId} onClick={() => void reviewCancellation()}>
+              {updatingId ? 'Updating...' : 'Confirm decision'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={pendingStatusUpdate !== null} onOpenChange={(open) => { if (!open) setPendingStatusUpdate(null) }}>
         <DialogContent>

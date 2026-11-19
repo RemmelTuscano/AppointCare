@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useEffectEvent, useState } from 'react'
+import { useEffect, useEffectEvent, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { format } from 'date-fns'
 import {
@@ -33,6 +34,8 @@ type PatientAppointment = {
   service: string | null
   created_at: string
   notes: string | null
+  cancellation_request_status: 'pending' | 'approved' | 'declined' | null
+  cancellation_request_reason: string | null
   clinic: { id: string; name: string; address: string } | null
   doctor: { id: string; name: string; specialization: string | null; is_available: boolean } | null
 }
@@ -43,6 +46,10 @@ export default function PatientAppointments() {
   const [loading, setLoading] = useState(true)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [expandedAppointmentId, setExpandedAppointmentId] = useState<string | null>(null)
+  const [cancellationAppointment, setCancellationAppointment] = useState<PatientAppointment | null>(null)
+  const [cancellationReason, setCancellationReason] = useState('')
+  const [cancellationError, setCancellationError] = useState<string | null>(null)
+  const [submittingCancellation, setSubmittingCancellation] = useState(false)
 
   const supabase = createClient()
 
@@ -88,6 +95,34 @@ export default function PatientAppointments() {
     navigator.clipboard.writeText(scheduleId)
     setCopiedId(scheduleId)
     setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const submitCancellation = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!cancellationAppointment || !cancellationReason.trim()) {
+      setCancellationError('Please enter a reason for your cancellation request.')
+      return
+    }
+    setSubmittingCancellation(true)
+    setCancellationError(null)
+    try {
+      const response = await fetch('/api/appointments/cancellation-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appointmentId: cancellationAppointment.id, reason: cancellationReason }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Could not submit the cancellation request.')
+      setAppointments((current) => current.map((appointment) => (
+        appointment.id === cancellationAppointment.id ? { ...appointment, ...result.appointment } : appointment
+      )))
+      setCancellationAppointment(null)
+      setCancellationReason('')
+    } catch (error) {
+      setCancellationError(error instanceof Error ? error.message : 'Could not submit the cancellation request.')
+    } finally {
+      setSubmittingCancellation(false)
+    }
   }
 
   const filteredAppointments = appointments.filter((apt) => {
@@ -178,6 +213,9 @@ export default function PatientAppointments() {
                           <TriangleAlert className="size-3" /> Doctor Unavailable
                         </Badge>
                       )}
+                      {apt.cancellation_request_status === 'pending' && (apt.status === 'pending' || apt.status === 'confirmed') && (
+                        <Badge variant="secondary">Cancellation requested</Badge>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
@@ -197,6 +235,13 @@ export default function PatientAppointments() {
                       <span>{apt.clinic?.address}</span>
                     </div>
 
+                    {apt.cancellation_request_status === 'pending' && (apt.status === 'pending' || apt.status === 'confirmed') && (
+                      <p className="text-sm text-amber-800">Your cancellation request is awaiting clinic review. Your appointment has not been cancelled.</p>
+                    )}
+                    {apt.cancellation_request_status === 'declined' && (apt.status === 'pending' || apt.status === 'confirmed') && (
+                      <p className="text-sm text-amber-800">The clinic declined your cancellation request. Your appointment remains {apt.status}.</p>
+                    )}
+
                     {isDoctorUnavailable && (
                       <div className="rounded-lg border border-amber-300 bg-amber-50 p-3.5 text-sm text-amber-900">
                         <div className="flex items-start gap-2.5">
@@ -214,6 +259,16 @@ export default function PatientAppointments() {
                     )}
 
                   </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                  {(apt.status === 'pending' || apt.status === 'confirmed') && apt.cancellation_request_status !== 'pending' && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => {
+                      setCancellationReason('')
+                      setCancellationError(null)
+                      setCancellationAppointment(apt)
+                    }}>
+                      Request cancellation
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
@@ -227,6 +282,7 @@ export default function PatientAppointments() {
                     {isDetailsOpen ? 'Hide details' : 'View details'}
                     {isDetailsOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
                   </Button>
+                  </div>
                 </div>
                 {isDetailsOpen && (
                   <section
@@ -275,6 +331,12 @@ export default function PatientAppointments() {
                         <dt className="text-xs font-semibold uppercase text-muted-foreground">Notes</dt>
                         <dd className="mt-1 whitespace-pre-wrap text-sm text-foreground">{apt.notes || 'No notes provided.'}</dd>
                       </div>
+                      {apt.cancellation_request_reason && (
+                        <div className="sm:col-span-2 lg:col-span-3">
+                          <dt className="text-xs font-semibold uppercase text-muted-foreground">Cancellation request ({apt.cancellation_request_status})</dt>
+                          <dd className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">{apt.cancellation_request_reason}</dd>
+                        </div>
+                      )}
                     </dl>
                   </section>
                 )}
@@ -295,6 +357,38 @@ export default function PatientAppointments() {
           </Card>
         )}
       </div>
+      <Dialog open={cancellationAppointment !== null} onOpenChange={(open) => {
+        if (!open && !submittingCancellation) setCancellationAppointment(null)
+      }}>
+        <DialogContent role="dialog" aria-modal="true" aria-labelledby="cancellation-request-title">
+          <DialogHeader>
+            <DialogTitle id="cancellation-request-title">Request appointment cancellation</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={submitCancellation} className="space-y-4 pt-3">
+            <p className="text-sm text-muted-foreground">
+              The clinic must approve your request. Your appointment remains active until then.
+            </p>
+            <div>
+              <label htmlFor="cancellation-reason" className="text-sm font-medium">Reason for cancellation <span aria-hidden="true">*</span></label>
+              <textarea
+                id="cancellation-reason"
+                required
+                maxLength={1000}
+                value={cancellationReason}
+                onChange={(event) => setCancellationReason(event.target.value)}
+                className="mt-2 min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            {cancellationError && <p role="alert" className="text-sm text-destructive">{cancellationError}</p>}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" disabled={submittingCancellation} onClick={() => setCancellationAppointment(null)}>Keep appointment</Button>
+              <Button type="submit" disabled={submittingCancellation || !cancellationReason.trim()}>
+                {submittingCancellation ? 'Sending...' : 'Send request'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

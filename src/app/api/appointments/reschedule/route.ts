@@ -101,6 +101,7 @@ export async function POST(request: Request) {
       .update(updatePayload)
       .eq('id', appointmentId)
       .eq('clinic_id', ownedClinic.id)
+      .or('cancellation_request_status.is.null,cancellation_request_status.neq.pending')
       .select(`
         id,
         patient_id,
@@ -113,11 +114,13 @@ export async function POST(request: Request) {
         clinic:clinics(id, user_id, name, address, phone),
         doctor:doctors(id, name, specialization, is_available)
       `)
-      .single()
+      .maybeSingle()
 
-    if (updateErr || !updatedApt) {
-      return NextResponse.json({ error: updateErr?.message || 'Failed to update appointment' }, { status: 500 })
+    if (updateErr) {
+      console.error('Failed to reschedule appointment:', updateErr.message)
+      return NextResponse.json({ error: 'Failed to update appointment.' }, { status: 500 })
     }
+    if (!updatedApt) return NextResponse.json({ error: 'This appointment has a pending cancellation request. Please review it before rescheduling.' }, { status: 409 })
 
     const patientData = updatedApt.patient as RelatedPerson
     const clinicData = updatedApt.clinic as RelatedClinic
