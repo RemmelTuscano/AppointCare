@@ -39,16 +39,21 @@ export async function GET(request: Request) {
     {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileLookupError } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
-          .single()
+          .maybeSingle()
+
+        if (profileLookupError) {
+          console.error('Could not load profile:', profileLookupError)
+          return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent('We could not load your profile. Please try signing in again.')}`)
+        }
 
         const userRole = profile?.role || user.user_metadata.role || requestedRole
 
         if (!profile) {
-          await supabase.from('profiles').upsert({
+          const { error: profileError } = await supabase.from('profiles').upsert({
             id: user.id,
             role: userRole,
             email: user.email,
@@ -56,16 +61,24 @@ export async function GET(request: Request) {
             address: user.user_metadata.address || null,
             phone: user.user_metadata.phone || null,
           })
+          if (profileError) {
+            console.error('Could not create profile:', profileError)
+            return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent('We could not create your profile. Please try signing in again.')}`)
+          }
         }
 
         if (userRole === 'clinic') {
-          await supabase.from('clinics').upsert({
+          const { error: clinicError } = await supabase.from('clinics').upsert({
             user_id: user.id,
             name: user.user_metadata.full_name || user.email || 'New clinic',
             address: user.user_metadata.address || 'Address pending',
             phone: user.user_metadata.phone || null,
             email: user.email,
-          }, { onConflict: 'user_id' })
+          }, { onConflict: 'user_id', ignoreDuplicates: true })
+          if (clinicError) {
+            console.error('Could not create clinic profile:', clinicError)
+            return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent('We could not create your clinic profile. Please try signing in again.')}`)
+          }
         }
 
         const redirectPath = userRole === 'clinic' || userRole === 'patient' ? `/${userRole}/dashboard` : fallbackDashboard

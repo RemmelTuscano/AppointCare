@@ -7,7 +7,7 @@ create table profiles (
   role user_role not null default 'patient',
   full_name text,
   email text unique not null,
-  location text,
+  address text,
   phone text,
   notification_preferences jsonb not null default '{"email": true, "sms": true}'::jsonb,
   avatar_url text,
@@ -209,13 +209,13 @@ begin
     else 'patient'::user_role
   end;
 
-  insert into profiles (id, role, email, full_name, location, phone)
+  insert into profiles (id, role, email, full_name, address, phone)
   values (
     new.id,
     selected_role,
     new.email,
     coalesce(new.raw_user_meta_data->>'full_name', new.email),
-    new.raw_user_meta_data->>'location',
+    coalesce(new.raw_user_meta_data->>'address', new.raw_user_meta_data->>'location'),
     new.raw_user_meta_data->>'phone'
   )
   on conflict (id) do nothing;
@@ -225,7 +225,7 @@ begin
     values (
       new.id,
       coalesce(new.raw_user_meta_data->>'clinic_name', new.raw_user_meta_data->>'full_name', 'New clinic'),
-      coalesce(new.raw_user_meta_data->>'location', 'Address pending'),
+      coalesce(new.raw_user_meta_data->>'address', new.raw_user_meta_data->>'location', 'Address pending'),
       new.raw_user_meta_data->>'phone',
       new.email
     )

@@ -101,8 +101,15 @@ manually. Revoking verification does not send an email.
 Patient and clinic signup accept Philippine mobile numbers in `09XXXXXXXXX` or
 `+639XXXXXXXXX` format and store them as `+639XXXXXXXXX`. Existing account numbers are not
 changed automatically. If your Supabase project uses the signup trigger from
-`scripts/separate-patient-clinic-accounts.sql`, update that deployed trigger to the revised
-`handle_new_user` definition in the script so it also copies phone numbers to profiles and clinics.
+`scripts/separate-patient-clinic-accounts.sql`, the signup trigger also creates the
+role-specific account records.
+
+Run `scripts/migrations/20261119000000_fix_signup_profile_details.sql` in the Supabase SQL
+Editor after setting up the schema. It updates the signup trigger to copy addresses and phone
+numbers into profiles and clinics, and restores missing contact details from signup metadata
+for existing accounts. Existing non-null profile values and clinic addresses other than
+`Address pending` are preserved; review the backfill before running it if a cleared field
+should remain empty. Run it again after any older script that replaces `handle_new_user`.
 
 For an end-to-end check, use a test patient with contact details you control, enable the desired
 notification channels, and create or update an appointment in the app. Check the displayed

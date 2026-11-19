@@ -52,11 +52,15 @@ export default async function EditPatientProfilePage() {
   if (!supabase) redirect('/login')
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from('profiles')
-    .select('full_name, email, phone, address, preferred_specialty, appointment_notes')
+    .select('*')
     .eq('id', user.id)
     .single()
+  if (error) {
+    console.error('Could not fetch profile:', error)
+    throw new Error('Could not load your profile. Please try again.')
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-7 pb-10">

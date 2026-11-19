@@ -6,6 +6,7 @@ import { DeleteAccountDialog } from '@/components/ui/delete-account-dialog'
 import { KeyRound, MapPin, UserRound, Stethoscope } from 'lucide-react'
 import Link from 'next/link'
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 
 const MEDICAL_SPECIALTIES = [
   'General Practice',
@@ -36,18 +37,18 @@ async function updateNotificationPreferences(formData: FormData) {
 
 export default async function AccountPage() {
   const supabase = await createClient()
+  if (!supabase) throw new Error('Supabase is not configured.')
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
-  let profile = null
-  try {
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user?.id)
-      .single()
-    profile = profileData
-  } catch (err) {
-    console.warn('Could not fetch profile:', err)
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+  if (error) {
+    console.error('Could not fetch profile:', error)
+    throw new Error('Could not load your profile. Please try again.')
   }
   const preferences = profile?.notification_preferences || user?.user_metadata?.notification_preferences || { email: true, sms: true }
 
