@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getSiteUrl } from '@/lib/utils'
@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Stethoscope, User, MapPin, Mail, Lock, Phone, ArrowLeft, AlertCircle, Check } from 'lucide-react'
+import { Stethoscope, User, MapPin, Mail, Lock, Phone, ArrowLeft, AlertCircle, Check, ChevronDown, Eye, EyeOff } from 'lucide-react'
 
 type SignupFormData = {
   fullname?: string
@@ -52,6 +52,168 @@ function getPasswordStrengthColor(strength: 'weak' | 'fair' | 'good' | 'strong')
     case 'strong':
       return 'bg-green-500'
   }
+}
+
+function PasswordInput({ id, value, onChange, invalid, confirm = false }: {
+  id: string
+  value: string
+  onChange: (value: string) => void
+  invalid: boolean
+  confirm?: boolean
+}) {
+  const [visible, setVisible] = useState(false)
+  const name = confirm ? 'confirm password' : 'password'
+
+  return (
+    <div className="relative">
+      {!confirm && <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />}
+      <Input
+        id={id}
+        type={visible ? 'text' : 'password'}
+        className={`${confirm ? '' : 'pl-10'} pr-10 text-xs sm:text-sm h-9 sm:h-10 ${invalid ? 'border-red-500' : ''}`}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        autoComplete="new-password"
+        placeholder="••••••"
+        required
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((current) => !current)}
+        aria-label={`${visible ? 'Hide' : 'Show'} ${name}`}
+        aria-pressed={visible}
+        aria-controls={id}
+        className="absolute inset-y-0 right-0 flex items-center px-3 text-[#587269] transition hover:text-[#174c40] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#4f9a6d]"
+      >
+        {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  )
+}
+
+function AddressInput({ id, value, onChange, placeholder, invalid }: {
+  id: string
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  invalid: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const interactingWithList = useRef(false)
+  const matches = SIGNUP_ADDRESS_SUGGESTIONS.filter((address) =>
+    address.toLowerCase().includes(value.trim().toLowerCase()),
+  )
+  const listId = `${id}-suggestions`
+
+  useEffect(() => {
+    if (!open) return
+    const dismiss = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', dismiss)
+    return () => document.removeEventListener('pointerdown', dismiss)
+  }, [open])
+
+  useEffect(() => {
+    if (open && activeIndex >= 0) {
+      document.getElementById(`${listId}-${activeIndex}`)?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [activeIndex, listId, open])
+
+  const selectAddress = (address: string) => {
+    onChange(address)
+    setOpen(false)
+    setActiveIndex(-1)
+  }
+
+  return (
+    <div ref={containerRef} onBlur={(event) => {
+      if (!interactingWithList.current && !event.currentTarget.contains(event.relatedTarget)) setOpen(false)
+    }}>
+      <div className="relative">
+        <MapPin className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-gray-400" />
+        <Input
+          id={id}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={open ? listId : undefined}
+          aria-activedescendant={open && activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
+          aria-describedby={`${id}-help`}
+          aria-invalid={invalid}
+          className={`pl-10 pr-10 text-xs sm:text-sm h-9 sm:h-10 ${invalid ? 'border-red-500' : ''}`}
+          value={value}
+          onFocus={() => setOpen(true)}
+          onClick={() => setOpen(true)}
+          onChange={(event) => {
+            onChange(event.target.value)
+            setActiveIndex(-1)
+            setOpen(true)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault()
+              setOpen(true)
+              setActiveIndex((index) => matches.length
+                ? (event.key === 'ArrowDown' ? Math.min(index + 1, matches.length - 1) : index <= 0 ? matches.length - 1 : index - 1)
+                : -1)
+            } else if (event.key === 'Enter' && open && activeIndex >= 0 && matches[activeIndex]) {
+              event.preventDefault()
+              selectAddress(matches[activeIndex])
+            } else if (event.key === 'Escape' && open) {
+              event.preventDefault()
+              setOpen(false)
+              setActiveIndex(-1)
+            }
+          }}
+          autoComplete="street-address"
+          placeholder={placeholder}
+          required
+        />
+        <button
+          type="button"
+          aria-label="Show address suggestions"
+          aria-expanded={open}
+          aria-controls={open ? listId : undefined}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => { setOpen((current) => !current); setActiveIndex(-1) }}
+          className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-gray-500"
+        >
+          <ChevronDown className="h-4 w-4" />
+        </button>
+      </div>
+      {open && (
+        <div
+          id={listId}
+          role="listbox"
+          aria-label="Address suggestions"
+          className="mt-1 max-h-44 overflow-y-auto rounded-md border border-emerald-200 bg-white p-1 shadow-md"
+          onPointerDown={() => { interactingWithList.current = true }}
+          onPointerUp={() => { interactingWithList.current = false }}
+          onPointerCancel={() => { interactingWithList.current = false }}
+        >
+          {matches.map((address, index) => (
+            <button
+              key={address}
+              id={`${listId}-${index}`}
+              type="button"
+              role="option"
+              aria-selected={index === activeIndex}
+              tabIndex={-1}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => selectAddress(address)}
+              className={`block w-full rounded px-3 py-2 text-left text-xs sm:text-sm ${index === activeIndex ? 'bg-emerald-100' : 'hover:bg-emerald-50'}`}
+            >
+              {address}
+            </button>
+          ))}
+          {!matches.length && <p className="px-3 py-2 text-xs text-gray-500">No suggestions found. You can type your own address.</p>}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function SignupPage({ onSwitchToLogin }: { onSwitchToLogin?: () => void } = {}) {
@@ -156,9 +318,6 @@ export default function SignupPage({ onSwitchToLogin }: { onSwitchToLogin?: () =
               <ClinicSignupForm onSubmit={handleSignup} loading={loading} error={error} addressListId={addressListId} />
             </TabsContent>
           </Tabs>
-          <datalist id={addressListId}>
-            {SIGNUP_ADDRESS_SUGGESTIONS.map((address) => <option key={address} value={address} />)}
-          </datalist>
         </CardContent>
       </Card>
     </div>
@@ -284,20 +443,13 @@ function PatientSignupForm({ onSubmit, loading, error, addressListId }: { onSubm
 
       <div className="space-y-1.5 sm:space-y-2">
         <Label htmlFor={`${addressListId}-patient-address`} className="text-xs sm:text-sm">Address</Label>
-        <div className="relative">
-          <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input
-            id={`${addressListId}-patient-address`}
-            list={addressListId}
-            aria-describedby={`${addressListId}-patient-address-help`}
-            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.address ? 'border-red-500' : ''}`}
-            value={formData.address}
-            onChange={(e) => handleFieldChange('address', e.target.value)}
-            autoComplete="street-address"
-            placeholder="Your address"
-            required
-          />
-        </div>
+        <AddressInput
+          id={`${addressListId}-patient-address`}
+          value={formData.address}
+          onChange={(value) => handleFieldChange('address', value)}
+          placeholder="Your address"
+          invalid={!!validationErrors.address}
+        />
         <p id={`${addressListId}-patient-address-help`} className="text-[10px] sm:text-xs text-gray-500">Choose a suggested location or type your full address.</p>
         {validationErrors.address && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.address}</p>}
       </div>
@@ -327,19 +479,13 @@ function PatientSignupForm({ onSubmit, loading, error, addressListId }: { onSubm
       </div>
 
       <div className="space-y-1.5 sm:space-y-2">
-        <Label className="text-xs sm:text-sm">Password</Label>
-        <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input
-            type="password"
-            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.password ? 'border-red-500' : ''}`}
-            value={formData.password}
-            onChange={(e) => handleFieldChange('password', e.target.value)}
-            autoComplete="new-password"
-            placeholder="••••••"
-            required
-          />
-        </div>
+        <Label htmlFor="patient-password" className="text-xs sm:text-sm">Password</Label>
+        <PasswordInput
+          id="patient-password"
+          value={formData.password}
+          onChange={(value) => handleFieldChange('password', value)}
+          invalid={!!validationErrors.password}
+        />
         {formData.password && (
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs">
@@ -352,15 +498,13 @@ function PatientSignupForm({ onSubmit, loading, error, addressListId }: { onSubm
       </div>
 
       <div className="space-y-1.5 sm:space-y-2">
-        <Label className="text-xs sm:text-sm">Confirm Password</Label>
-        <Input
-          type="password"
-          className={`text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.confirmPassword ? 'border-red-500' : ''}`}
+        <Label htmlFor="patient-confirm-password" className="text-xs sm:text-sm">Confirm Password</Label>
+        <PasswordInput
+          id="patient-confirm-password"
           value={formData.confirmPassword}
-          onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
-          autoComplete="new-password"
-          placeholder="••••••"
-          required
+          onChange={(value) => handleFieldChange('confirmPassword', value)}
+          invalid={!!validationErrors.confirmPassword}
+          confirm
         />
         {validationErrors.confirmPassword && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.confirmPassword}</p>}
       </div>
@@ -491,20 +635,13 @@ function ClinicSignupForm({ onSubmit, loading, error, addressListId }: { onSubmi
 
       <div className="space-y-1.5 sm:space-y-2">
         <Label htmlFor={`${addressListId}-clinic-address`} className="text-xs sm:text-sm">Address</Label>
-        <div className="relative">
-          <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input
-            id={`${addressListId}-clinic-address`}
-            list={addressListId}
-            aria-describedby={`${addressListId}-clinic-address-help`}
-            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.address ? 'border-red-500' : ''}`}
-            value={formData.address}
-            onChange={(e) => handleFieldChange('address', e.target.value)}
-            autoComplete="street-address"
-            placeholder="Clinic address"
-            required
-          />
-        </div>
+        <AddressInput
+          id={`${addressListId}-clinic-address`}
+          value={formData.address}
+          onChange={(value) => handleFieldChange('address', value)}
+          placeholder="Clinic address"
+          invalid={!!validationErrors.address}
+        />
         <p id={`${addressListId}-clinic-address-help`} className="text-[10px] sm:text-xs text-gray-500">Choose a suggested location or type your full address.</p>
         {validationErrors.address && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.address}</p>}
       </div>
@@ -534,19 +671,13 @@ function ClinicSignupForm({ onSubmit, loading, error, addressListId }: { onSubmi
       </div>
 
       <div className="space-y-1.5 sm:space-y-2">
-        <Label className="text-xs sm:text-sm">Password</Label>
-        <div className="relative">
-          <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input
-            type="password"
-            className={`pl-10 text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.password ? 'border-red-500' : ''}`}
-            value={formData.password}
-            onChange={(e) => handleFieldChange('password', e.target.value)}
-            autoComplete="new-password"
-            placeholder="••••••"
-            required
-          />
-        </div>
+        <Label htmlFor="clinic-password" className="text-xs sm:text-sm">Password</Label>
+        <PasswordInput
+          id="clinic-password"
+          value={formData.password}
+          onChange={(value) => handleFieldChange('password', value)}
+          invalid={!!validationErrors.password}
+        />
         {formData.password && (
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-[10px] sm:text-xs">
@@ -559,15 +690,13 @@ function ClinicSignupForm({ onSubmit, loading, error, addressListId }: { onSubmi
       </div>
 
       <div className="space-y-1.5 sm:space-y-2">
-        <Label className="text-xs sm:text-sm">Confirm Password</Label>
-        <Input
-          type="password"
-          className={`text-xs sm:text-sm h-9 sm:h-10 ${validationErrors.confirmPassword ? 'border-red-500' : ''}`}
+        <Label htmlFor="clinic-confirm-password" className="text-xs sm:text-sm">Confirm Password</Label>
+        <PasswordInput
+          id="clinic-confirm-password"
           value={formData.confirmPassword}
-          onChange={(e) => handleFieldChange('confirmPassword', e.target.value)}
-          autoComplete="new-password"
-          placeholder="••••••"
-          required
+          onChange={(value) => handleFieldChange('confirmPassword', value)}
+          invalid={!!validationErrors.confirmPassword}
+          confirm
         />
         {validationErrors.confirmPassword && <p className="text-[10px] sm:text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3 flex-shrink-0" />{validationErrors.confirmPassword}</p>}
       </div>
