@@ -5,7 +5,7 @@ export interface Profile {
   role: UserRole
   full_name: string | null
   email: string
-  location: string | null
+  address: string | null
   phone: string | null
   avatar_url: string | null
   created_at: string

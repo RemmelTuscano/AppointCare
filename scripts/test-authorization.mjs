@@ -71,10 +71,13 @@ test('clinic appointments require authentication and ownership before querying d
       }
       assert.equal(table, 'appointments')
       appointmentQueries++
-      return { select: () => ({ eq: (column, value) => {
+      return { select: (columns) => ({ eq: (column, value) => {
         assert.equal(column, 'clinic_id')
         queriedClinic = value
-        return { order: async () => ({ data: [{ id: 'appointment' }], error: appointmentError }) }
+        return { order: async () => ({
+          data: [{ id: 'appointment', patient: { full_name: 'Patient' } }],
+          error: columns.includes('location') ? { message: 'column profiles.location does not exist' } : appointmentError,
+        }) }
       } }) }
     },
   }
@@ -100,6 +103,7 @@ test('clinic appointments require authentication and ownership before querying d
   const response = await GET(request('clinic-a'))
   assert.equal(response.status, 200)
   assert.equal(response.body.appointments[0].id, 'appointment')
+  assert.equal(response.body.appointments[0].patient.full_name, 'Patient')
   assert.equal(response.headers['Cache-Control'], 'private, no-store')
   assert.equal(queriedClinic, 'clinic-a')
   appointmentError = { message: 'database failure' }

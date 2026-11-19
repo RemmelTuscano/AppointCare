@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await admin
     .from('appointments')
-    .select('*, patient:profiles(id, full_name, email, phone, location), doctor:doctors(id, name, specialization, is_available), clinic:clinics(id, name, address)')
+    .select('*, patient:profiles(id, full_name, email, phone), doctor:doctors(id, name, specialization, is_available), clinic:clinics(id, name, address)')
     .eq('clinic_id', clinic.id)
     .order('scheduled_at', { ascending: false })
 

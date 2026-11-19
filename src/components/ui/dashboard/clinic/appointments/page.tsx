@@ -71,6 +71,7 @@ export default function ClinicAppointments() {
   const [clinicId, setClinicId] = useState<string | null>(null)
   const [clinicDoctors, setClinicDoctors] = useState<AvailableDoctor[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ appointment: ClinicAppointment; status: 'confirmed' | 'cancelled' } | null>(null)
   const [actionResult, setActionResult] = useState<{ type: 'success' | 'warning' | 'error'; title: string; message: string } | null>(null)
@@ -90,17 +91,17 @@ export default function ClinicAppointments() {
 
   const fetchAppointments = useEffectEvent(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       const user = session?.user
-      if (!user) return
+      if (sessionError || !user) throw new Error('Your session has expired. Please sign in again.')
 
-      const { data: clinic } = await supabase
+      const { data: clinic, error: clinicError } = await supabase
         .from('clinics')
         .select('id, name, address')
         .eq('user_id', user.id)
         .single()
 
-      if (!clinic) return
+      if (clinicError || !clinic) throw new Error('Could not load your clinic profile. Please refresh the page or contact support.')
       setClinicId(clinic.id)
 
       // Fetch appointments via dedicated endpoint using server-side elevated access
@@ -109,6 +110,7 @@ export default function ClinicAppointments() {
       const payload = await res.json()
       if (!res.ok) throw new Error(payload.error || 'Failed to load appointments.')
       setAppointments(sortAppointments(payload.appointments || []))
+      setLoadError(null)
 
       // Also fetch clinic doctors for reassignments
       const { data: docs } = await supabase
@@ -117,12 +119,8 @@ export default function ClinicAppointments() {
         .eq('clinic_id', clinic.id)
       setClinicDoctors(docs || [])
     } catch (error) {
-      setAppointments([])
-      setActionResult({
-        type: 'error',
-        title: 'Appointments could not be loaded',
-        message: error instanceof Error ? error.message : 'Failed to load appointments.',
-      })
+      console.error('Could not load appointments:', error)
+      setLoadError(error instanceof Error ? error.message : 'Failed to load appointments.')
     } finally {
       setLoading(false)
     }
@@ -364,6 +362,12 @@ export default function ClinicAppointments() {
         </div>
       </header>
 
+      {loadError && (
+        <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          Appointments could not be loaded: {loadError}
+        </div>
+      )}
+
       <div className="grid gap-3 sm:gap-4">
         {filteredAppointments.map((apt) => {
           const scheduleId = formatScheduleId(apt.id)
@@ -512,7 +516,7 @@ export default function ClinicAppointments() {
           )
         })}
 
-        {filteredAppointments.length === 0 && (
+        {!loadError && filteredAppointments.length === 0 && (
           <Card>
             <CardContent className="p-12 text-center text-muted-foreground">
               <CalendarDays className="mx-auto mb-4 size-12 text-emerald-200" />
