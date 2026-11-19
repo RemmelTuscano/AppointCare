@@ -14,10 +14,10 @@ import {
   LogOut,
   Shield,
   Activity,
-  HeartPulse,
   Building2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BrandMark } from '@/components/ui/brand-mark'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
@@ -71,9 +71,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
       <aside className="hidden lg:fixed lg:left-0 lg:top-0 z-50 lg:flex h-screen w-72 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl lg:sticky">
         <div className="border-b border-sidebar-border/70 px-5 py-6">
           <Link href={`/${activeRole}/dashboard`} className="flex items-center gap-3" aria-label="AppointCare dashboard">
-            <span className="grid size-10 place-items-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-              <HeartPulse className="size-5" strokeWidth={2.5} />
-            </span>
+            <BrandMark className="size-10 shrink-0 rounded-[27%] shadow-sm ring-1 ring-white/20" />
             <span>
               <span className="block font-heading text-xl font-semibold text-white">AppointCare</span>
               <span className="mt-0.5 block text-[11px] font-bold uppercase text-sidebar-foreground/55">{activeRole} workspace</span>
@@ -121,6 +119,13 @@ export function Sidebar({ role, userName }: SidebarProps) {
           </Button>
         </div>
       </aside>
+
+      <header className="border-b border-border bg-background px-4 py-3 lg:hidden">
+        <Link href={`/${activeRole}/dashboard`} className="inline-flex items-center gap-2 font-heading text-lg font-semibold text-emerald-950" aria-label="AppointCare dashboard">
+          <BrandMark className="size-9 shrink-0" />
+          AppointCare
+        </Link>
+      </header>
 
       {/* Mobile Floating Bottom Navigation Bar */}
       <nav className="fixed bottom-6 left-4 right-4 z-50 flex items-center justify-around gap-2 rounded-2xl border border-white/20 bg-gradient-to-br from-white/10 to-white/5 px-3 py-3 shadow-2xl backdrop-blur-xl lg:hidden">

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { BrandMark } from '@/components/ui/brand-mark'
 import { ArrowLeft, ShieldCheck, Stethoscope, User, Mail, Lock, Eye, EyeOff } from 'lucide-react'
 
 type LoginRole = 'patient' | 'clinic' | 'admin'
@@ -114,9 +115,7 @@ export default function LoginPage({ onSwitchToSignup }: { onSwitchToSignup?: () 
       <Card className="border border-[#c8dfca] bg-[#fafffa] shadow-[0_24px_70px_rgba(23,76,64,0.16)]">
       <CardHeader className="space-y-1 text-center px-4 py-6 sm:px-6 sm:py-8">
         <div className="mb-4 flex justify-center">
-          <div className="rounded-xl bg-[#174c40] p-2 sm:p-3 shadow-lg shadow-[#174c40]/20">
-            <Stethoscope className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
-          </div>
+          <BrandMark className="size-10 rounded-[27%] shadow-lg shadow-[#174c40]/20 sm:size-14" />
         </div>
         <CardTitle className="text-xl sm:text-2xl font-bold text-[#174c40]">AppointCare</CardTitle>
         <CardDescription className="text-xs sm:text-sm text-[#587269]">Sign in to manage your appointments</CardDescription>

@@ -80,9 +80,19 @@ function sortAppointments(appointments: ClinicAppointment[]) {
   })
 }
 
+function applyTimeSlot(date: Date, slot: string) {
+  const [time, modifier] = slot.split(' ')
+  let hours = Number(time.split(':')[0])
+  const minutes = Number(time.split(':')[1])
+  if (modifier === 'PM' && hours < 12) hours += 12
+  if (modifier === 'AM' && hours === 12) hours = 0
+  const result = new Date(date)
+  result.setHours(hours, minutes, 0, 0)
+  return result
+}
+
 export default function ClinicAppointments() {
   const [appointments, setAppointments] = useState<ClinicAppointment[]>([])
-  const [clinicId, setClinicId] = useState<string | null>(null)
   const [clinicDoctors, setClinicDoctors] = useState<AvailableDoctor[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -98,9 +108,11 @@ export default function ClinicAppointments() {
   // Reschedule dialog state
   const [reschedulingApt, setReschedulingApt] = useState<ClinicAppointment | null>(null)
   const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>()
+  const [rescheduleCutoff, setRescheduleCutoff] = useState(0)
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('09:00 AM')
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('')
   const [rescheduleReason, setRescheduleReason] = useState<string>('')
+  const [rescheduleError, setRescheduleError] = useState<string | null>(null)
   const [isSubmittingReschedule, setIsSubmittingReschedule] = useState(false)
 
   const supabase = createClient()
@@ -118,8 +130,6 @@ export default function ClinicAppointments() {
         .single()
 
       if (clinicError || !clinic) throw new Error('Could not load your clinic profile. Please refresh the page or contact support.')
-      setClinicId(clinic.id)
-
       // Fetch appointments via dedicated endpoint using server-side elevated access
       // to ensure patient names and profiles are always resolved properly
       const res = await fetch(`/api/clinic/appointments?clinicId=${clinic.id}`)
@@ -265,26 +275,24 @@ export default function ClinicAppointments() {
 
   const openRescheduleModal = (apt: ClinicAppointment) => {
     setReschedulingApt(apt)
-    setRescheduleDate(new Date(apt.scheduled_at))
+    setRescheduleDate(apt.status === 'completed' ? undefined : new Date(apt.scheduled_at))
+    setSelectedTimeSlot((current) => apt.status === 'completed' ? '' : current || '09:00 AM')
     setSelectedDoctorId(apt.doctor_id || '')
     setRescheduleReason(apt.doctor && !apt.doctor.is_available ? 'Doctor unavailable - clinic reassigning' : '')
+    setRescheduleError(null)
   }
 
   const handleRescheduleSubmit = async () => {
-    if (!reschedulingApt || !rescheduleDate) return
+    if (!reschedulingApt || !rescheduleDate || !selectedTimeSlot) return
+    const newDate = applyTimeSlot(rescheduleDate, selectedTimeSlot)
+    if (reschedulingApt.status === 'completed' && newDate.getTime() <= Date.now()) {
+      setRescheduleError('Choose a future date and time to reopen this appointment.')
+      return
+    }
     setIsSubmittingReschedule(true)
-    setActionResult(null)
+    setRescheduleError(null)
 
     try {
-      const [time, modifier] = selectedTimeSlot.split(' ')
-      let hours = Number(time.split(':')[0])
-      const minutes = Number(time.split(':')[1])
-      if (modifier === 'PM' && hours < 12) hours += 12
-      if (modifier === 'AM' && hours === 12) hours = 0
-
-      const newDate = new Date(rescheduleDate)
-      newDate.setHours(hours, minutes, 0, 0)
-
       const response = await fetch('/api/appointments/reschedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -311,19 +319,18 @@ export default function ClinicAppointments() {
       })
 
       setReschedulingApt(null)
-      if (clinicId) {
-        const refreshedAppointments = await fetch(`/api/clinic/appointments?clinicId=${clinicId}`)
-        if (refreshedAppointments.ok) {
-          const payload = await refreshedAppointments.json()
-          setAppointments(sortAppointments(payload.appointments || []))
-        }
-      }
+      setAppointments((current) => sortAppointments(current.map((item) => (
+        item.id === reschedulingApt.id ? {
+          ...item,
+          scheduled_at: data.appointment.scheduled_at,
+          status: data.appointment.status,
+          doctor_id: data.appointment.doctor_id,
+          doctor: data.appointment.doctor,
+          notes: data.appointment.notes,
+        } : item
+      ))))
     } catch (err) {
-      setActionResult({
-        type: 'error',
-        title: 'Appointment not rescheduled',
-        message: err instanceof Error ? err.message : 'Could not complete rescheduling.',
-      })
+      setRescheduleError(err instanceof Error ? err.message : 'Could not complete rescheduling.')
     } finally {
       setIsSubmittingReschedule(false)
     }
@@ -550,12 +557,15 @@ export default function ClinicAppointments() {
                       </>
                     )}
                     {/* Reschedule / Reassign Button */}
-                    {(apt.status === 'pending' || apt.status === 'confirmed') && apt.cancellation_request_status !== 'pending' && (
+                    {(apt.status === 'pending' || apt.status === 'confirmed' || apt.status === 'completed') && apt.cancellation_request_status !== 'pending' && (
                       <Button
                         size="sm"
                         variant={isDoctorUnavailable ? 'default' : 'outline'}
                         className={isDoctorUnavailable ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}
-                        onClick={() => openRescheduleModal(apt)}
+                        onClick={() => {
+                          setRescheduleCutoff(Date.now())
+                          openRescheduleModal(apt)
+                        }}
                       >
                         <CalendarSync className="mr-1.5 size-4" />
                         {isDoctorUnavailable ? 'Reassign / Reschedule' : 'Reschedule'}
@@ -694,6 +704,11 @@ export default function ClinicAppointments() {
             </DialogHeader>
 
             <div className="space-y-5 pt-3">
+              {reschedulingApt.status === 'completed' && (
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                  This reopens the same appointment as confirmed and removes its previous date from appointment history.
+                </p>
+              )}
               {/* Select Doctor to Reassign */}
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-emerald-950">Assign Doctor</Label>
@@ -730,7 +745,13 @@ export default function ClinicAppointments() {
                   <Calendar
                     mode="single"
                     selected={rescheduleDate}
-                    onSelect={setRescheduleDate}
+                    onSelect={(date) => {
+                      setRescheduleDate(date)
+                      if (reschedulingApt.status === 'completed') {
+                        setRescheduleCutoff(Date.now())
+                        setSelectedTimeSlot('')
+                      }
+                    }}
                     disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                   />
                 </div>
@@ -744,8 +765,9 @@ export default function ClinicAppointments() {
                     <button
                       key={slot}
                       type="button"
+                      disabled={reschedulingApt.status === 'completed' && (!rescheduleDate || applyTimeSlot(rescheduleDate, slot).getTime() <= rescheduleCutoff)}
                       onClick={() => setSelectedTimeSlot(slot)}
-                      className={`flex items-center justify-center gap-1 py-2 px-2.5 rounded-md border text-xs font-medium transition-colors ${
+                      className={`flex items-center justify-center gap-1 py-2 px-2.5 rounded-md border text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                         selectedTimeSlot === slot
                           ? 'border-emerald-600 bg-emerald-600 text-white'
                           : 'border-slate-200 hover:bg-slate-50 text-slate-700'
@@ -769,13 +791,15 @@ export default function ClinicAppointments() {
                 />
               </div>
 
+              {rescheduleError && <p role="alert" className="text-sm text-destructive">{rescheduleError}</p>}
+
               {/* Buttons */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t">
                 <Button variant="outline" onClick={() => setReschedulingApt(null)}>
                   Cancel
                 </Button>
                 <Button
-                  disabled={!rescheduleDate || isSubmittingReschedule}
+                  disabled={!rescheduleDate || !selectedTimeSlot || isSubmittingReschedule}
                   onClick={handleRescheduleSubmit}
                   className="bg-emerald-700 hover:bg-emerald-800"
                 >

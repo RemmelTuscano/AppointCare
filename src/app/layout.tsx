@@ -17,6 +17,7 @@ const displayFont = Newsreader({
 export const metadata: Metadata = {
   title: 'AppointCare',
   description: 'Healthcare appointment management platform',
+  icons: { icon: [{ url: '/appointcare-logo.svg', type: 'image/svg+xml' }] },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

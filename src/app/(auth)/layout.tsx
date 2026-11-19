@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { HeartPulse } from 'lucide-react'
+import { BrandMark } from '@/components/ui/brand-mark'
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -12,9 +12,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       >
         <div className="absolute inset-0 -z-10 bg-[#123b3b]/70" />
         <Link href="/" className="inline-flex w-fit items-center gap-3" aria-label="AppointCare home">
-          <span className="grid size-11 place-items-center rounded-md bg-[#e8cf82] text-[#183d3b] shadow-lg">
-            <HeartPulse className="size-5" strokeWidth={2.4} />
-          </span>
+          <BrandMark className="size-11 shrink-0 rounded-[27%] shadow-lg ring-1 ring-white/20" />
           <span className="font-heading text-xl font-semibold">AppointCare</span>
         </Link>
         <div className="relative max-w-xl py-5 lg:pb-8">

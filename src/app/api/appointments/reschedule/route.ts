@@ -74,6 +74,12 @@ export async function POST(request: Request) {
     if (fetchErr || !existingApt) {
       return NextResponse.json({ error: 'Appointment not found.' }, { status: 404 })
     }
+    if (!['pending', 'confirmed', 'completed'].includes(existingApt.status)) {
+      return NextResponse.json({ error: 'This appointment cannot be rescheduled.' }, { status: 409 })
+    }
+    if (existingApt.status === 'completed' && scheduledDate.getTime() <= Date.now()) {
+      return NextResponse.json({ error: 'Choose a future date and time to reopen a completed appointment.' }, { status: 400 })
+    }
 
     // Build update payload
     const updatePayload: Record<string, string> = {
@@ -101,6 +107,7 @@ export async function POST(request: Request) {
       .update(updatePayload)
       .eq('id', appointmentId)
       .eq('clinic_id', ownedClinic.id)
+      .eq('status', existingApt.status)
       .or('cancellation_request_status.is.null,cancellation_request_status.neq.pending')
       .select(`
         id,
@@ -120,7 +127,7 @@ export async function POST(request: Request) {
       console.error('Failed to reschedule appointment:', updateErr.message)
       return NextResponse.json({ error: 'Failed to update appointment.' }, { status: 500 })
     }
-    if (!updatedApt) return NextResponse.json({ error: 'This appointment has a pending cancellation request. Please review it before rescheduling.' }, { status: 409 })
+    if (!updatedApt) return NextResponse.json({ error: 'The appointment changed or has a pending cancellation request. Please refresh and review it before rescheduling.' }, { status: 409 })
 
     const patientData = updatedApt.patient as RelatedPerson
     const clinicData = updatedApt.clinic as RelatedClinic

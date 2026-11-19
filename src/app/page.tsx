@@ -4,12 +4,12 @@ import {
   CalendarDays,
   Check,
   ChevronRight,
-  HeartPulse,
   ShieldCheck,
   Sparkles,
   UsersRound,
 } from 'lucide-react'
 import { LandingAuthPanel } from '@/components/ui/landing-auth-panel'
+import { BrandMark } from '@/components/ui/brand-mark'
 
 const features = [
   {
@@ -46,9 +46,7 @@ export default function Page() {
         <div className="relative mx-auto flex min-h-[calc(100svh-10rem)] w-full max-w-[1600px] flex-col px-3 pb-3 pt-3 sm:px-6 lg:px-12 lg:py-8">
           <header className="flex items-center justify-between gap-2 sm:gap-4">
             <Link href="/" className="flex items-center gap-2 font-semibold text-white" aria-label="AppointCare home">
-              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#b8e2b9] text-[#174c40] sm:h-10 sm:w-10">
-                <HeartPulse className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.5} />
-              </span>
+              <BrandMark className="size-8 shrink-0 rounded-[27%] shadow-sm ring-1 ring-white/20 sm:size-10" />
               <span className="text-base sm:text-lg lg:text-xl">AppointCare</span>
             </Link>
             <LandingAuthPanel />

@@ -79,6 +79,12 @@ reconstructed. New entries are classified using trusted Auth app metadata at the
 the action. Changes made through service-role database operations without an administrator
 actor are not recorded as administrator actions.
 
+## Rescheduling completed appointments
+
+Clinics can reschedule a completed appointment from the Done tab. This reopens the same
+appointment as confirmed at a future date and time; its previous completed date is no longer
+shown in appointment history.
+
 ## Appointment cancellation requests
 
 Before deploying cancellation requests, apply
