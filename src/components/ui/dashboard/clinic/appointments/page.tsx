@@ -563,7 +563,6 @@ export default function ClinicAppointments() {
                         </Button>
                       </>
                     )}
-                    {/* Reschedule / Reassign Button */}
                     {(apt.status === 'pending' || apt.status === 'confirmed' || apt.status === 'completed') && apt.cancellation_request_status !== 'pending' && (
                       <Button
                         size="sm"
@@ -575,7 +574,7 @@ export default function ClinicAppointments() {
                         }}
                       >
                         <CalendarSync className="mr-1.5 size-4" />
-                        {isDoctorUnavailable ? 'Reassign / Reschedule' : 'Reschedule'}
+                        {isDoctorUnavailable ? 'Reassign / Reschedule' : apt.status === 'completed' ? 'Follow-up' : 'Reschedule'}
                       </Button>
                     )}
 
@@ -692,14 +691,13 @@ export default function ClinicAppointments() {
         </DialogContent>
       </Dialog>
 
-      {/* Clinic Reschedule & Reassign Modal */}
       {reschedulingApt && (
         <Dialog open={!!reschedulingApt} onOpenChange={(open) => !open && setReschedulingApt(null)}>
           <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-xl text-emerald-950">
                 <CalendarSync className="size-5 text-emerald-700" />
-                Reschedule or Reassign Appointment
+                {reschedulingApt.status === 'completed' ? 'Schedule Follow-up' : 'Reschedule or Reassign Appointment'}
               </DialogTitle>
               <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                 <span>Patient:</span>
@@ -810,7 +808,11 @@ export default function ClinicAppointments() {
                   onClick={handleRescheduleSubmit}
                   className="bg-emerald-700 hover:bg-emerald-800"
                 >
-                  {isSubmittingReschedule ? 'Saving & Sending...' : 'Update & Notify Patient (Email + SMS)'}
+                  {isSubmittingReschedule
+                    ? 'Saving & Sending...'
+                    : reschedulingApt.status === 'completed'
+                      ? 'Schedule Follow-up'
+                      : 'Update & Notify Patient (Email + SMS)'}
                 </Button>
               </div>
             </div>
