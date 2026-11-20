@@ -24,7 +24,7 @@ function load(relativePath, mocks = {}) {
 }
 
 const scheduleId = load('src/lib/schedule-id.ts')
-const { filterClinicAppointments } = load('src/lib/clinic-appointment-filters.ts', { '@/lib/schedule-id': scheduleId })
+const { filterClinicAppointments, getClinicDailyConfirmedAppointments } = load('src/lib/clinic-appointment-filters.ts', { '@/lib/schedule-id': scheduleId })
 const appointments = [
   { id: 'aaaabbbb', status: 'pending', scheduled_at: '2026-01-08T09:00:00', patient: { full_name: 'Alex', email: 'alex@example.test' }, doctor: { name: 'Lee' } },
   { id: 'ccccdddd', status: 'confirmed', scheduled_at: '2026-01-08T10:00:00', patient: { full_name: 'Sam', email: null }, doctor: null },
@@ -46,4 +46,17 @@ test('status filters combine with search and day filters', () => {
   assert.deepEqual(ids(filterClinicAppointments(appointments, 'confirmed', 'sam', '9')), [])
   assert.deepEqual(ids(filterClinicAppointments(appointments, 'all', 'SCH-EEEEFFFF', '9')), ['eeeeffff'])
   assert.deepEqual(ids(filterClinicAppointments(appointments, 'completed', 'sam', '')), [])
+})
+
+test('daily clinic schedule includes only confirmed appointments on that date in time order', () => {
+  const dailyAppointments = [
+    { id: 'late', status: 'confirmed', scheduled_at: '2026-01-08T10:00:00' },
+    { id: 'early', status: 'confirmed', scheduled_at: '2026-01-08T09:30:00' },
+    { id: 'pending', status: 'pending', scheduled_at: '2026-01-08T09:00:00' },
+    { id: 'other-day', status: 'confirmed', scheduled_at: '2026-01-09T09:00:00' },
+  ]
+  assert.deepEqual(
+    ids(getClinicDailyConfirmedAppointments(dailyAppointments, new Date('2026-01-08T12:00:00'))),
+    ['early', 'late'],
+  )
 })

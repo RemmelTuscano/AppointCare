@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Calendar, CheckCircle, Clock, Hash, UserRound, type LucideIcon } from 'lucide-react'
 import { format } from 'date-fns'
 import { formatScheduleId } from '@/lib/schedule-id'
+import { getClinicDailyConfirmedAppointments } from '@/lib/clinic-appointment-filters'
 
 type ClinicAppointment = {
   id: string
@@ -21,6 +22,8 @@ export default function ClinicDashboard() {
   const [appointments, setAppointments] = useState<ClinicAppointment[]>([])
   const [stats, setStats] = useState({ total: 0, pending: 0, confirmed: 0 })
   const supabase = createClient()
+  const today = new Date()
+  const dailyConfirmedAppointments = getClinicDailyConfirmedAppointments(appointments, today)
 
   useEffect(() => {
     const fetchAppointments = async () => {
@@ -78,13 +81,14 @@ export default function ClinicDashboard() {
 
       <Card className="overflow-hidden">
         <CardHeader className="px-4 sm:px-6 py-4 sm:py-5">
-          <CardTitle className="font-heading text-base sm:text-lg text-foreground">Upcoming appointments</CardTitle>
+          <CardTitle className="font-heading text-base sm:text-lg text-foreground">Today&apos;s confirmed appointments</CardTitle>
+          <p className="text-xs sm:text-sm text-muted-foreground">{format(today, 'PPPP')}</p>
         </CardHeader>
         <CardContent className="space-y-3 sm:space-y-4 px-4 sm:px-6 py-4 sm:py-5">
-          {appointments.length === 0 ? (
-            <p className="text-xs sm:text-sm text-gray-500">No appointments scheduled yet.</p>
+          {dailyConfirmedAppointments.length === 0 ? (
+            <p className="text-xs sm:text-sm text-gray-500">No clinic-confirmed appointments scheduled for today.</p>
           ) : (
-            appointments.slice(0, 4).map((appointment) => (
+            dailyConfirmedAppointments.map((appointment) => (
               <div key={appointment.id} className="flex flex-col gap-2 sm:gap-3 rounded-md border border-border/80 bg-muted/45 p-3 sm:p-4 transition-colors hover:border-primary/25 hover:bg-card md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
@@ -94,12 +98,12 @@ export default function ClinicDashboard() {
                     </span>
                     <p className="text-xs sm:text-sm font-semibold text-emerald-950">{appointment.patient?.full_name || 'Patient'}</p>
                   </div>
-                  <p className="text-[10px] sm:text-xs text-gray-500 mt-1">{format(new Date(appointment.scheduled_at), 'PPp')}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-500 mt-1">{format(new Date(appointment.scheduled_at), 'p')}</p>
                   <p className="mt-1 flex items-center gap-2 text-[10px] sm:text-xs text-gray-600"><UserRound className="size-3 sm:size-4 flex-shrink-0" /> Dr. {appointment.doctor?.name || 'Unassigned'}</p>
                   <p className="mt-1 text-[10px] sm:text-xs text-gray-600">Service: {appointment.service || 'Not recorded'}</p>
                   {appointment.notes && <p className="mt-1 text-[10px] sm:text-xs text-gray-600">{appointment.notes}</p>}
                 </div>
-                <span className={`w-fit rounded-full px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold capitalize ${appointment.status === 'confirmed' ? 'bg-teal-100 text-teal-800' : appointment.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-muted text-muted-foreground'}`}>{appointment.status}</span>
+                <span className="w-fit rounded-full bg-teal-100 px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-xs font-bold capitalize text-teal-800">Confirmed</span>
               </div>
             ))
           )}

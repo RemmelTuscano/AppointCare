@@ -10,6 +10,30 @@ type FilterableAppointment = {
   doctor: { name: string | null } | null
 }
 
+type ScheduledAppointment = {
+  status: string
+  scheduled_at: string
+}
+
+export function getClinicDailyConfirmedAppointments<T extends ScheduledAppointment>(
+  appointments: T[],
+  day: Date,
+): T[] {
+  const dayStart = new Date(day)
+  dayStart.setHours(0, 0, 0, 0)
+  const nextDay = new Date(dayStart)
+  nextDay.setDate(nextDay.getDate() + 1)
+
+  return appointments
+    .filter((appointment) => {
+      const scheduledAt = new Date(appointment.scheduled_at).getTime()
+      return appointment.status === 'confirmed'
+        && scheduledAt >= dayStart.getTime()
+        && scheduledAt < nextDay.getTime()
+    })
+    .sort((first, second) => new Date(first.scheduled_at).getTime() - new Date(second.scheduled_at).getTime())
+}
+
 export function filterClinicAppointments<T extends FilterableAppointment>(
   appointments: T[],
   status: ClinicAppointmentStatusFilter,
