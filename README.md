@@ -155,13 +155,15 @@ client-side code. The response contains only aggregate counts, not patient detai
 ## Automated administrator backups
 
 Apply `scripts/migrations/20261120131500_automated_admin_backups.sql` in the Supabase SQL
-Editor for each environment. Set `BACKUP_CRON_SECRET` to a random secret of at least 32
-characters, then configure a trusted scheduler to send a weekly POST request to
-`/api/admin/backup` with `Authorization: Bearer <secret>`. The endpoint is disabled when the
-secret is missing or too short. Backups are XLSX exports of application data, stored in the
-private `admin_backups` bucket; each weekly run removes files older than 30 days. Admins can
-browse and download the latest backups from the Backup Center. Protect the scheduler secret
-and backup files as sensitive patient data; do not expose the secret in client-side code.
+Editor for each environment. On Vercel, set `CRON_SECRET` to a random secret of at least 32
+characters; Vercel sends it as the authorization header for the weekly GET job configured in
+`vercel.json` (Sunday at 04:00 UTC). The protected endpoint is `/api/admin/backup/automated`.
+For an external scheduler, set `BACKUP_CRON_SECRET` and send a POST request to
+`/api/admin/backup` with `Authorization: Bearer <secret>`. Backups are XLSX exports of
+application data, stored in the private `admin_backups` bucket; each weekly run removes files
+older than 30 days. Admins can browse and download the latest backups from the Backup Center.
+Protect the scheduler secret and backup files as sensitive patient data; do not expose the
+secret in client-side code.
 
 ## Learn More
 

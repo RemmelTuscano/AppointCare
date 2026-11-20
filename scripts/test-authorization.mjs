@@ -138,6 +138,7 @@ test('backup rejects forged admin roles and allows trusted administrators', asyn
       }),
       isAdminBackupFilename: () => true,
     },
+    '@/lib/admin-backup-automation': { runAutomatedAdminBackup: async () => ({}) },
   })
 
   assert.equal((await GET()).status, 401)
@@ -205,8 +206,8 @@ test('backup workbooks paginate tables without dropping rows', async () => {
 })
 
 test('automated backups require the cron secret, upload privately, and prune expired files', async () => {
-  const previousSecret = process.env.BACKUP_CRON_SECRET
-  process.env.BACKUP_CRON_SECRET = 'backup-test-secret-that-is-at-least-32-chars'
+  const previousSecret = process.env.CRON_SECRET
+  process.env.CRON_SECRET = 'backup-test-secret-that-is-at-least-32-chars'
   let uploadedFilename = null
   let removed = []
   let adminCalls = 0
@@ -237,12 +238,11 @@ test('automated backups require the cron secret, upload privately, and prune exp
       },
     },
   }
-  const { POST } = loadModule('src/app/api/admin/backup/route.ts', {
+  const { runAutomatedAdminBackup } = loadModule('src/lib/admin-backup-automation.ts', {
     'next/server': { NextResponse: { json: (body, options = {}) => ({ body, status: options.status || 200, headers: options.headers || {} }) } },
     'node:crypto': crypto,
+    'server-only': {},
     '@/lib/supabase/admin': { createAdminClient: () => { adminCalls++; return admin } },
-    '@/lib/supabase/server': {},
-    '@/lib/activity': {},
     '@/lib/admin-backup': {
       ADMIN_BACKUP_BUCKET: 'admin_backups',
       ADMIN_BACKUP_CONTENT_TYPE: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -258,21 +258,38 @@ test('automated backups require the cron secret, upload privately, and prune exp
   })
 
   try {
-    const unauthorized = await POST({ headers: { get: () => 'Bearer wrong-secret' } })
+    const unauthorized = await runAutomatedAdminBackup({ headers: { get: () => 'Bearer wrong-secret' } })
     assert.equal(unauthorized.status, 401)
     assert.equal(adminCalls, 0)
 
-    const authorized = await POST({
-      headers: { get: () => `Bearer ${process.env.BACKUP_CRON_SECRET}` },
+    const authorized = await runAutomatedAdminBackup({
+      headers: { get: () => `Bearer ${process.env.CRON_SECRET}` },
     })
     assert.equal(authorized.status, 200)
     assert.match(uploadedFilename, /^appointcare-backup-/)
     assert.deepEqual(removed, ['appointcare-backup-2024-01-01T00-00-00-000Z.xlsx'])
     assert.equal(authorized.body.deletedBackups, 1)
   } finally {
-    if (previousSecret === undefined) delete process.env.BACKUP_CRON_SECRET
-    else process.env.BACKUP_CRON_SECRET = previousSecret
+    if (previousSecret === undefined) delete process.env.CRON_SECRET
+    else process.env.CRON_SECRET = previousSecret
   }
+})
+
+test('Vercel cron GET delegates to the protected automated backup runner', async () => {
+  const expectedResponse = { status: 200 }
+  let receivedRequest = null
+  const { GET } = loadModule('src/app/api/admin/backup/automated/route.ts', {
+    '@/lib/admin-backup-automation': {
+      runAutomatedAdminBackup: async (request) => {
+        receivedRequest = request
+        return expectedResponse
+      },
+    },
+  })
+  const request = { headers: { get: () => 'Bearer test' } }
+
+  assert.equal(await GET(request), expectedResponse)
+  assert.equal(receivedRequest, request)
 })
 
 test('automated backup downloads require admin access and a generated filename', async () => {
