@@ -1,5 +1,6 @@
 import { Activity, Building2, CalendarDays, Clock3, ShieldCheck, UserRound } from 'lucide-react'
 import { requireAdminClient } from '@/lib/supabase/admin-access'
+import { maskEmail } from '@/lib/privacy-masking'
 
 type ActivityRow = {
   id: string
@@ -51,7 +52,7 @@ export default async function AdminActivityPage() {
         {activityError ? null : activities.length === 0 ? (
           <div className="px-5 py-16 text-center"><Clock3 className="mx-auto h-8 w-8 text-emerald-300" /><p className="mt-3 font-semibold text-emerald-950">No administrator activity recorded yet</p><p className="mt-1 text-sm text-gray-500">Administrator actions will appear here.</p></div>
         ) : (
-          <div className="divide-y divide-emerald-50">{activities.map((event) => { const actor = event.actor; return <div key={event.id} className="flex gap-4 px-5 py-5"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-100 text-emerald-700"><ActivityIcon entityType={event.entity_type} /></span><div className="min-w-0 flex-1"><div className="flex flex-col justify-between gap-1 sm:flex-row"><p className="font-semibold text-emerald-950">{event.summary}</p><time className="shrink-0 text-xs text-gray-500">{formatActivityDate(event.created_at)}</time></div><p className="mt-1 text-sm text-gray-500">{event.action.replaceAll('_', ' ')} · {actor?.full_name || actor?.email || 'Former administrator'}</p></div></div> })}</div>
+          <div className="divide-y divide-emerald-50">{activities.map((event) => { const actor = event.actor; return <div key={event.id} className="flex gap-4 px-5 py-5"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-100 text-emerald-700"><ActivityIcon entityType={event.entity_type} /></span><div className="min-w-0 flex-1"><div className="flex flex-col justify-between gap-1 sm:flex-row"><p className="font-semibold text-emerald-950">{event.summary}</p><time className="shrink-0 text-xs text-gray-500">{formatActivityDate(event.created_at)}</time></div><p className="mt-1 text-sm text-gray-500">{event.action.replaceAll('_', ' ')} · {actor?.full_name || (actor?.email ? maskEmail(actor.email) : 'Former administrator')}</p></div></div> })}</div>
         )}
       </section>
     </div>
