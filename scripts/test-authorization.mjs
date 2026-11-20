@@ -116,20 +116,28 @@ test('backup rejects forged admin roles and allows trusted administrators', asyn
   const admin = {
     from: () => ({ select: async () => ({ data: [], error: null }) }),
   }
-  class Workbook {
-    xlsx = { writeBuffer: async () => new Uint8Array() }
-    addWorksheet() { return { addRow() {} } }
-  }
   class Response {
     constructor(body, options) { this.body = body; this.status = options.status; this.headers = options.headers }
     static json(body, options) { return new Response(body, options) }
   }
   const { GET } = loadModule('src/app/api/admin/backup/route.ts', {
     'next/server': { NextResponse: Response },
-    exceljs: { default: { Workbook } },
+    'node:crypto': crypto,
     '@/lib/supabase/admin': { createAdminClient: () => { adminCalls++; return admin } },
     '@/lib/supabase/server': { createClient: async () => session(user) },
     '@/lib/activity': { recordActivity: async () => {} },
+    '@/lib/admin-backup': {
+      ADMIN_BACKUP_BUCKET: 'admin_backups',
+      ADMIN_BACKUP_CONTENT_TYPE: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ADMIN_BACKUP_RETENTION_DAYS: 30,
+      createAdminBackupFilename: () => 'appointcare-backup-2026-01-01T00-00-00-000Z.xlsx',
+      createAdminBackupWorkbook: async () => ({
+        buffer: new Uint8Array(),
+        exportedAt: '2026-01-01T00:00:00.000Z',
+        tables: ['profiles'],
+      }),
+      isAdminBackupFilename: () => true,
+    },
   })
 
   assert.equal((await GET()).status, 401)
@@ -139,6 +147,181 @@ test('backup rejects forged admin roles and allows trusted administrators', asyn
   user.app_metadata.role = 'admin'
   assert.equal((await GET()).status, 200)
   assert.equal(adminCalls, 1)
+})
+
+test('backup workbooks paginate tables without dropping rows', async () => {
+  const state = { ranges: [], worksheets: [] }
+  class Workbook {
+    xlsx = { writeBuffer: async () => new Uint8Array([1]) }
+    addWorksheet(name) {
+      const worksheet = {
+        name,
+        addedRows: [],
+        addRows(rows) { this.addedRows.push(...rows) },
+        addRow(row) { this.addedRows.push(row) },
+        getRow: () => ({}),
+        getColumn: () => ({ letter: 'A' }),
+      }
+      state.worksheets.push(worksheet)
+      return worksheet
+    }
+  }
+  const { createAdminBackupWorkbook, createAdminBackupFilename, isAdminBackupFilename } = loadModule('src/lib/admin-backup.ts', {
+    'server-only': {},
+    exceljs: { default: { Workbook } },
+    '@/lib/supabase/admin': {},
+  })
+  const admin = {
+    from(table) {
+      const query = {
+        select: () => query,
+        order: (column, options) => {
+          assert.equal(column, 'id')
+          assert.equal(options.ascending, true)
+          return query
+        },
+        range: async (start, end) => {
+          state.ranges.push({ table, start, end })
+          if (table === 'profiles' && start === 0) {
+            return { data: Array.from({ length: 1000 }, (_, id) => ({ id: String(id) })), error: null }
+          }
+          return { data: [], error: null }
+        },
+      }
+      return query
+    },
+  }
+
+  const backup = await createAdminBackupWorkbook(admin)
+  assert.equal(backup.buffer[0], 1)
+  assert.equal(backup.tables.length, 5)
+  assert.equal(state.ranges.length, 6)
+  assert.deepEqual(state.ranges.slice(0, 2), [
+    { table: 'profiles', start: 0, end: 999 },
+    { table: 'profiles', start: 1000, end: 1999 },
+  ])
+  assert.equal(state.worksheets[0].addedRows.length, 1000)
+  assert.ok(isAdminBackupFilename(createAdminBackupFilename(new Date('2026-01-02T03:04:05.006Z'))))
+})
+
+test('automated backups require the cron secret, upload privately, and prune expired files', async () => {
+  const previousSecret = process.env.BACKUP_CRON_SECRET
+  process.env.BACKUP_CRON_SECRET = 'backup-test-secret-that-is-at-least-32-chars'
+  let uploadedFilename = null
+  let removed = []
+  let adminCalls = 0
+  const admin = {
+    storage: {
+      from(bucket) {
+        assert.equal(bucket, 'admin_backups')
+        return {
+          upload: async (filename, buffer, options) => {
+            uploadedFilename = filename
+            assert.ok(buffer instanceof Uint8Array)
+            assert.equal(options.upsert, false)
+            return { error: null }
+          },
+          list: async () => ({
+            data: [{
+              id: 'expired-backup',
+              name: 'appointcare-backup-2024-01-01T00-00-00-000Z.xlsx',
+              created_at: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString(),
+            }],
+            error: null,
+          }),
+          remove: async (filenames) => {
+            removed = filenames
+            return { error: null }
+          },
+        }
+      },
+    },
+  }
+  const { POST } = loadModule('src/app/api/admin/backup/route.ts', {
+    'next/server': { NextResponse: { json: (body, options = {}) => ({ body, status: options.status || 200, headers: options.headers || {} }) } },
+    'node:crypto': crypto,
+    '@/lib/supabase/admin': { createAdminClient: () => { adminCalls++; return admin } },
+    '@/lib/supabase/server': {},
+    '@/lib/activity': {},
+    '@/lib/admin-backup': {
+      ADMIN_BACKUP_BUCKET: 'admin_backups',
+      ADMIN_BACKUP_CONTENT_TYPE: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ADMIN_BACKUP_RETENTION_DAYS: 30,
+      createAdminBackupFilename: () => 'appointcare-backup-2026-01-01T00-00-00-000Z.xlsx',
+      createAdminBackupWorkbook: async () => ({
+        buffer: new Uint8Array([1]),
+        exportedAt: new Date().toISOString(),
+        tables: ['profiles'],
+      }),
+      isAdminBackupFilename: (filename) => filename.startsWith('appointcare-backup-'),
+    },
+  })
+
+  try {
+    const unauthorized = await POST({ headers: { get: () => 'Bearer wrong-secret' } })
+    assert.equal(unauthorized.status, 401)
+    assert.equal(adminCalls, 0)
+
+    const authorized = await POST({
+      headers: { get: () => `Bearer ${process.env.BACKUP_CRON_SECRET}` },
+    })
+    assert.equal(authorized.status, 200)
+    assert.match(uploadedFilename, /^appointcare-backup-/)
+    assert.deepEqual(removed, ['appointcare-backup-2024-01-01T00-00-00-000Z.xlsx'])
+    assert.equal(authorized.body.deletedBackups, 1)
+  } finally {
+    if (previousSecret === undefined) delete process.env.BACKUP_CRON_SECRET
+    else process.env.BACKUP_CRON_SECRET = previousSecret
+  }
+})
+
+test('automated backup downloads require admin access and a generated filename', async () => {
+  let user = null
+  let signedFilename = null
+  const signedUrl = 'https://storage.example.test/signed-backup'
+  const { GET } = loadModule('src/app/api/admin/backup/download/route.ts', {
+    'next/server': {
+      NextResponse: {
+        json: (body, options = {}) => ({ body, status: options.status || 200 }),
+        redirect: (url, options) => ({ url, status: options.status, headers: options.headers }),
+      },
+    },
+    '@/lib/supabase/admin': {
+      createAdminClient: () => ({
+        storage: {
+          from: (bucket) => {
+            assert.equal(bucket, 'admin_backups')
+            return {
+              createSignedUrl: async (filename, expiresIn, options) => {
+                signedFilename = filename
+                assert.equal(expiresIn, 60)
+                assert.equal(options.download, filename)
+                return { data: { signedUrl }, error: null }
+              },
+            }
+          },
+        },
+      }),
+    },
+    '@/lib/supabase/server': { createClient: async () => session(user) },
+    '@/lib/admin-backup': {
+      ADMIN_BACKUP_BUCKET: 'admin_backups',
+      isAdminBackupFilename: (filename) => /^appointcare-backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.xlsx$/.test(filename),
+    },
+  })
+  const request = (name) => ({ url: `https://app.example.test/api/admin/backup/download?name=${encodeURIComponent(name)}` })
+
+  assert.equal((await GET(request('appointcare-backup-2026-01-01T00-00-00-000Z.xlsx'))).status, 401)
+  user = { id: 'user-a', app_metadata: { role: 'patient' } }
+  assert.equal((await GET(request('appointcare-backup-2026-01-01T00-00-00-000Z.xlsx'))).status, 403)
+  user.app_metadata.role = 'admin'
+  assert.equal((await GET(request('../private.xlsx'))).status, 400)
+
+  const response = await GET(request('appointcare-backup-2026-01-01T00-00-00-000Z.xlsx'))
+  assert.equal(response.status, 302)
+  assert.equal(response.url, signedUrl)
+  assert.equal(signedFilename, 'appointcare-backup-2026-01-01T00-00-00-000Z.xlsx')
+  assert.equal(response.headers['Cache-Control'], 'private, no-store')
 })
 
 test('direct message endpoints cannot send arbitrary content', async () => {
